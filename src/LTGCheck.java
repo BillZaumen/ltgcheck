@@ -774,17 +774,17 @@ public class LTGCheck {
 		    textStart = end;
 		    skipToDepth = depth;
 		    skipping++;
-		    if (chapterCount > 0) {
-			String s = sb.toString();
-			sb.append("\n");
-			if (scandepth == 0) {
-			    offsetMap.put(base+sb.length()-1, lineno);
-			}
-			base += sb.length();
-			result.add(s);
-			sb.setLength(0);
+		    // if (chapterCount > 0) {
+		    String s = sb.toString();
+		    sb.append("\n");
+		    if (scandepth == 0) {
+			offsetMap.put(base+sb.length()-1, lineno);
 		    }
-		    chapterCount++;
+		    base += sb.length() - 1;
+		    result.add(s);
+		    sb.setLength(0);
+			// }
+			// chapterCount++;
 		}
 		depth++;
 		break;
@@ -1109,7 +1109,7 @@ public class LTGCheck {
 	    sb.append(text.substring(textStart));
 	}
 	if (scandepth == 0) {
-	    offsetMap.put(base + sb.length(), lineno);
+	    offsetMap.put(base + sb.length()-1, lineno);
 	}
 	result.add(sb.toString());
 	return result;
@@ -1168,6 +1168,8 @@ public class LTGCheck {
 	boolean justPrint = false;
 	boolean prompt = false;
 	boolean listLocalWords = false;
+	boolean listOffsetMap = false;
+	int partShown = -1;
 	int argind = 0;
 
 	while (argind < argv.length) {
@@ -1205,6 +1207,22 @@ public class LTGCheck {
 		    System.err.println("gcheck: bad port");
 		    System.exit(1);
 		}
+	    } else if (argv[argind].equals("--chapter")) {
+		argind++;
+		if (argind == argv.length) {
+		    System.err.println("gcheck: missing host name");
+		    System.exit(1);
+		}
+		try {
+		    partShown = Integer.parseInt(argv[argind]);
+		    if (partShown < 0) {
+			throw new Exception("negative chapter");
+		    }
+		} catch (Exception e) {
+		    System.err.println("gcheck: the argument to --chapter"
+				       + " must be a non-negative integer");
+		    System.exit(1);
+		}
 	    } else if (argv[argind].equals("--print")) {
 		justPrint = true;
 	    } else if(argv[argind].equals("--raw")) {
@@ -1215,6 +1233,9 @@ public class LTGCheck {
 		    useLocalWords = false;
 	    } else if (argv[argind].equals("--listLocalWords")) {
 		listLocalWords = true;
+	    } else if (argv[argind].equals("--listOffsetMap")) {
+		// for debugging, so not documented
+		listOffsetMap = true;
 	    } else if (argv[argind].equals("-?")
 		       || argv[argind].equals("--help")) {
 		System.out.println("ltgcheck OPTIONS [FILE]");
@@ -1355,6 +1376,15 @@ public class LTGCheck {
 
 	ArrayList<String> data = textmode? scan(textPatterns, 1, false, text):
 	    scan(latexPatterns, 1, true, text);
+
+	if (listOffsetMap) {
+	    System.out.println("offset map:");
+	    for (Map.Entry<Integer,Integer> entry: offsetMap.entrySet()) {
+		System.out.format("    %d -> %d\n",
+				  entry.getKey(), entry.getValue());
+	    }
+	    System.exit(0);
+	}
 	
 	if (listLocalWords) {
 	    System.out.println("--- LOCAL WORDS ---");
@@ -1373,10 +1403,17 @@ public class LTGCheck {
 	int part = 0;
 	int base = 0;
 	for (String datum: data) {
+	    if (part < partShown) {
+		base += datum.length();
+		part++;
+		continue;
+	    }
+	    if (partShown >= 0 && partShown < part) break;
+	    part++;
 	    if (justPrint) {
 		System.out.print(datum);
 	    } else {
-		System.out.println("*** PROCESSING PART " +  (++part));
+		System.out.println("*** PROCESSING PART " + part);
 		Object obj = queryServer(url, datum);
 		if (obj != null) {
 		    displayServerResponse(obj, datum, fname, base);

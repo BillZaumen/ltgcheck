@@ -53,6 +53,14 @@ This option sets the host running the LanguateTool server.
 .BI \-\-port \ PORT
 This option sets the TCP port used to connect to the LanguateTool server.
 .TP
+.BI \-\-chapter \ CHAPTER
+This option indicates that only chapter
+.I CHAPTER
+should be checked for errors, although all footnotes and captions will
+also be checked.  Chapter 0 refers to any text preceding the first chapter
+in the document.  This option applies to LaTeX files, but not files using
+other formats.
+.TP
 .B \-\-ignoreLocalWords
 This option indicates that words added to a document-specific dictionary
 should be ignored during spelling checks.
