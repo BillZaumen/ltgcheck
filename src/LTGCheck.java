@@ -1135,7 +1135,7 @@ public class LTGCheck {
 			.get("issueType", String.class);
 		    if (issueType.equals("misspelling")) {
 			String word = data.substring(off, off+len);
-			if (localWords.contains(word)) return;
+			if (localWords.contains(word)) continue;
 		    }
 		}
 		if (len > 0 && msg.endsWith(".")) {
