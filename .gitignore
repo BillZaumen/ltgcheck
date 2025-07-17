@@ -1,0 +1,9 @@
+/BUILD/
+/inst/TBUILD/
+/classes/
+/*.deb
+*.jar
+*.gz
+*~
+*.tex
+*.err

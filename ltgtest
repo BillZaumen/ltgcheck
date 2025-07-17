@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# Equivalent to ltgcheck, but for testing before installation.
+#
+LIB=/usr/share/java/libbzdev.jar
+java -classpath ltgcheck.jar:$LIB LTGCheck "$@"

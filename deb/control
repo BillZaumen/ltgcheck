@@ -1,0 +1,10 @@
+Package: ltgcheck
+Version: VERSION
+Section: contrib/web
+Priority: optional
+Architecture: all
+Depends: bash (>= 3.2), default-jdk, libbzdev-base-java (>= 2.1.126)
+Maintainer: Bill Zaumen <bill.zaumen+software@gmail.com>
+Description: Utility that uses an LLM-based grammar checker,
+ LanguageTool, to check text, LaTeX, and open document format
+ text files.

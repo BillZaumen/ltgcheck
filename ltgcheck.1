@@ -1,0 +1,110 @@
+.TH LTGCHECK "1" "Jul 2025" "ltgcheck VERSION" "User Command"
+.SH NAME
+.PP
+ltgcheck \- Check document grammar using LanguageTool
+.SH SYNOPSIS
+.PP
+.B ltgcheck
+[\fIOPTIONS\fR]
+[\fIFILE\fR]
+.br
+.B ltgcheck
+.B  \-h
+.SH DESCRIPTION
+The program
+.B ltgcheck
+uses a server running LanguageTool to perform a grammar check on
+plain text, open-document-format text files, and LaTeX files. The
+output lists a file name and a line number for each error message that
+Language Tool generates, formatted so that the emacs compile command
+will show the text associated with each error.
+.PP
+For LaTeX files
+.B ltgcheck
+ignores various LaTeX commands and environments. For example, the text
+in section headings, tables, figures, and equations is excluded and
+hance not checked. Text formatted in fonts such as TT are also ignored
+as these are frequently variable names or computer commands.
+For open-document-format files, most XML elements are ignored. A few
+are replaced with line breaks.  Line breaks are also created after
+anything that looks like the end of a sentence.
+.PP
+As a simple, straightforward program,
+.B ltgcheck
+is intended to handle most of a document provided the document is
+mostly text, but not necessarily all of one.  Also, there are both
+free and premium versions of Language Tool.  The free version will
+detect fewer errors than the premium version.
+.B ltgcheck
+has been tested using the Docker image meyay/languagetool. Visit
+the URL  https://github.com/meyayl/docker-languagetool for installation
+instructions (there is a docker-compose.yml file shown that can be
+easily used, with slight modifications (e.g., changing the user field).
+.SH OPTIONS
+The opptions are
+.TP
+.BI \-h \ HOST
+.TQ
+.BI \-\-host \ HOST
+This option sets the host running the LanguateTool server.
+.TP
+.BI \-p \ PORT
+.TQ
+.BI \-\-port \ PORT
+This option sets the TCP port used to connect to the LanguateTool server.
+.TP
+.B \-\-ignoreLocalWords
+This option indicates that words added to a document-specific dictionary
+should be ignored during spelling checks.
+.TP
+.B \-\-listLocalWords
+This option indicates that
+.B ltgcheck
+should list words added to a document-sepcific dictionary used the
+emacs spelling software.  This is a LaTeX specific option.  The listed
+words appear at the end of the input file on lines starting with either
+"%LocalWords: " or "% LocalWords: ".
+.TP
+.B \-\-odt
+Indicates that the input file is an open document format text file. With
+this option, standard input cannot be used.
+.TP
+.B \-\-print
+Print the contents of a document after removing formatting directives.
+Formatting directives will be removed for open document format text files
+and LaTeX files.
+.TP
+.B \-\-prompt
+For open document format text files, ask before creating a file whose
+extnsion is
+.B .txt
+if a file with that name exists.
+.TP
+.B \-\-raw
+Print the content.xml portion of an open documant
+format text file.  This option cannot be used with standard input.
+.TP
+.B \-\-tex
+Indicates that the input file, or standard input, is a LaTeX file.
+.TP
+.B \-\-text
+Indicates that the input file, or standard input, is a plain text file.
+.TP
+.B \-?
+.TQ
+.B \-\-help
+Print a "help" message.
+.SH FILES
+.B /usr/bin/ltgcheck
+.B /usr/share/ltgcheck/ltgcheck.jar
+.B /usr/share/doc/ltgcheck.copyright
+.B /usr/share/doc/ltgcheck.changelog.gz
+.B /usr/share/doc/ltgcheck.changelog.Bebian.gz
+.SH AUTHOR
+Written by Bill Zaumen
+.SH COPYRIGHT
+Copyright \(co 2025 Bill Zaumen.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.

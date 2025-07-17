@@ -1,0 +1,2 @@
+Main-Class: LTGCheck
+Class-Path: libbzdev-base.jar
