@@ -16,14 +16,18 @@ The program
 uses a server running LanguageTool to perform a grammar check on
 plain text, open-document-format text files, and LaTeX files. The
 output lists a file name and a line number for each error message that
-Language Tool generates, formatted so that the emacs compile command
-will show the text associated with each error.
+LanguageTool generates, formatted so that the emacs
+.B compile
+command will show the text associated with each error. This command
+reads the error messages and maps them to marks in the file, so that
+a "go to next error" command will show the correct line in the file,
+even addition lines have been inserted before that line.
 .PP
 For LaTeX files
 .B ltgcheck
 ignores various LaTeX commands and environments. For example, the text
 in section headings, tables, figures, and equations is excluded and
-hance not checked. Text formatted in fonts such as TT are also ignored
+hence not checked. Text formatted in fonts such as TT are also ignored
 as these are frequently variable names or computer commands.
 For open-document-format files, most XML elements are ignored. A few
 are replaced with line breaks.  Line breaks are also created after
@@ -32,26 +36,56 @@ anything that looks like the end of a sentence.
 As a simple, straightforward program,
 .B ltgcheck
 is intended to handle most of a document provided the document is
-mostly text, but not necessarily all of one.  Also, there are both
-free and premium versions of Language Tool.  The free version will
+mostly text. For LaTeX and open document format text files,
+.B ltgcheck
+assumes that the files are syntactically correct. Also, there are both
+free and premium versions of LanguageTool.  The free version will
 detect fewer errors than the premium version.
 .B ltgcheck
 has been tested using the Docker image meyay/languagetool. Visit
-the URL  https://github.com/meyayl/docker-languagetool for installation
-instructions (there is a docker-compose.yml file shown that can be
-easily used, with slight modifications (e.g., changing the user field).
+the URL
+.PP
+.B https://github.com/meyayl/docker-languagetool
+.PP
+for installation instructions (there is a docker-compose.yml file
+there that can be easily used, with slight modifications (e.g.,
+changing the user field).  The default URL used to connect to a
+LanguageTool server is
+.PP
+.B http://localhost:8081/v2/check
+.PP
+but options can modify this or completely replace this URL.
 .SH OPTIONS
-The opptions are
+The options are
 .TP
 .BI \-h \ HOST
 .TQ
 .BI \-\-host \ HOST
-This option sets the host running the LanguateTool server.
+This option sets the host running the LanguageTool server.
 .TP
 .BI \-p \ PORT
 .TQ
 .BI \-\-port \ PORT
-This option sets the TCP port used to connect to the LanguateTool server.
+This option sets the TCP port used to connect to the LanguageTool server.
+.TP
+.BI \-\-https
+This option changes the protocol in the URL used to connect to the
+LanguageTool server to
+.BR https .
+.TP
+.BI \-\-version \ VERSION
+This option changes the version of LanguageTool as it appears in the
+URL used to connect to the LanguageTool server. The default is
+.BR v2 .
+.TP
+.BI \-\-url \ URL
+This option provides the URL used to connect to the LanguageTool
+server.  When present, any
+.BR \-\-https ,
+.BR \-\-host ,
+.BR \-\-port ,
+.B \-\-version
+options are ignored.
 .TP
 .BI \-\-chapter \ CHAPTER
 This option indicates that only chapter
@@ -68,7 +102,7 @@ should be ignored during spelling checks.
 .B \-\-listLocalWords
 This option indicates that
 .B ltgcheck
-should list words added to a document-sepcific dictionary used the
+should list words added to a document-specific dictionary used the
 emacs spelling software.  This is a LaTeX specific option.  The listed
 words appear at the end of the input file on lines starting with either
 "%LocalWords: " or "% LocalWords: ".
@@ -84,12 +118,12 @@ and LaTeX files.
 .TP
 .B \-\-prompt
 For open document format text files, ask before creating a file whose
-extnsion is
+extension is
 .B .txt
 if a file with that name exists.
 .TP
 .B \-\-raw
-Print the content.xml portion of an open documant
+Print the content.xml portion of an open document
 format text file.  This option cannot be used with standard input.
 .TP
 .B \-\-tex
@@ -116,3 +150,7 @@ License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 .br
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
+\"  LocalWords:  fIOPTIONS fR fIFILE br LaTeX emacs TT meyay yml TP
+\"  LocalWords:  languagetool TQ TCP https url ignoreLocalWords odt
+\"  LocalWords:  listLocalWords txt xml tex Zaumen GPLv GPL
+\"  LocalWords:  LTGCHECK ltgcheck LanguageTool

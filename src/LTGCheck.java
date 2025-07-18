@@ -342,16 +342,24 @@ public class LTGCheck {
 	    System.exit(1);
 	}
 	// System.out.println("response code = " + c.getResponseCode());
-	is = c.getInputStream();
+	try {
+	    is = c.getInputStream();
+	} catch (Exception e) {}
 	if (is == null) {
-	    is = c.getErrorStream();
-	    System.err.println("response code = " + c.getResponseCode());
-	    if (is == null) {
-		System.err.println("Cannot find error stream");
+	    System.err.println("ltgcheck: server response code = "
+			       + c.getResponseCode());
+	    try {
+		is = c.getErrorStream();
+		if (is == null) {
+		    System.err.println("ltgcheck: Cannot find error stream");
+		    System.exit(1);
+		} else {
+		    is.transferTo(System.err);
+		    is.close();
+		}
+	    } catch (Exception e) {
+		System.err.println("ltgcheck: Could not read an error stream");
 		System.exit(1);
-	    } else {
-		is.transferTo(System.err);
-		is.close();
 	    }
 	    return null;
 	} else {
@@ -1162,6 +1170,9 @@ public class LTGCheck {
 
 	String host = "localhost";
 	int port = 8081;
+	String version = "v2";
+	String proto = "http";
+	String urlString = null;
 	boolean textmode = false;
 	boolean odtmode = false;
 	boolean raw = false;
@@ -1207,6 +1218,22 @@ public class LTGCheck {
 		    System.err.println("gcheck: bad port");
 		    System.exit(1);
 		}
+	    } else if (argv[argind].equals("--version")) {
+		argind++;
+		if (argind == argv.length) {
+		    System.err.println("gcheck: missing version");
+		    System.exit(1);
+		}
+		version = argv[argind];
+	    } else if (argv[argind].equals("--https")) {
+		proto = "https";
+	    } else if (argv[argind].equals("--url")) {
+		argind++;
+		if (argind == argv.length) {
+		    System.err.println("gcheck: missing URL");
+		    System.exit(1);
+		}
+		urlString = argv[argind];
 	    } else if (argv[argind].equals("--chapter")) {
 		argind++;
 		if (argind == argv.length) {
@@ -1239,8 +1266,12 @@ public class LTGCheck {
 	    } else if (argv[argind].equals("-?")
 		       || argv[argind].equals("--help")) {
 		System.out.println("ltgcheck OPTIONS [FILE]");
+		System.out.println("    --httts (use HTTPS instead of HTTP)");
 		System.out.println("    --host HOST (host name)");
 		System.out.println("    --port PORT (TCP port)");
+		System.out.println("    --version VERSION"
+				   + " (LanguageTool version)");
+		System.out.println("    --url URL (LanguageTool URL)");
 		System.out.println("    --odt (input is open document text");
 		System.out.println("    --print (print after normalizing)");
 		System.out.println("    --prompt (ask before overwriting)");
@@ -1257,7 +1288,11 @@ public class LTGCheck {
 	    argind++;
 	}
 
-	URL url = new URL("http://" + host + ":" + port +"/v2/check");
+	// URL url = new URL("http://" + host + ":" + port +"/v2/check");
+	URL url = (urlString == null)?
+	    new URL(proto + "://" + host + ":" + port +"/"
+		    + version + "/check"):
+	    new URL(urlString);
 
 	int findex = (argind == argv.length)? -1: argind;
 
