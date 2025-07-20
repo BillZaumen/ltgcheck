@@ -114,6 +114,19 @@ public class LTGCheck {
 	TEXTRM,
 	TEXTSF,
 	EMPH,
+	TEXTNORMAL,
+	MDSERIES,
+	BF,
+	BFSERIES,
+	RMSERIES,
+	SLFAMILY,
+	TT,
+	TTFAMILY,
+	UPSHAPE,
+	ITSERIES,
+	SLSHAPE,
+	SCSHAPE,
+	NORMALFONT,
 	BEGIN_VERBATIM,
 	END_VERBATIM,
 	CAPTION,
@@ -239,6 +252,19 @@ public class LTGCheck {
 	new Pattern(PatternType.TEXTRM,"\\textrm{"),
 	new Pattern(PatternType.TEXTSF,"\\textsf{"),
 	new Pattern(PatternType.EMPH, "\\emph{"),
+	new Pattern(PatternType.TEXTNORMAL, "\\textnormal{"),
+	new Pattern(PatternType.MDSERIES, "\\mdseries"),
+	new Pattern(PatternType.BF, "\\bf"),
+	new Pattern(PatternType.BFSERIES, "\\bfseries"),
+	new Pattern(PatternType.RMSERIES, "\\rmseries"),
+	new Pattern(PatternType.SLFAMILY, "\\slfamily"),
+	new Pattern(PatternType.TT, "\\tt"),
+	new Pattern(PatternType.TTFAMILY, "\\ttfamily"),
+	new Pattern(PatternType.UPSHAPE, "\\upshape"),
+	new Pattern(PatternType.ITSERIES, "\\itseries"),
+	new Pattern(PatternType.SLSHAPE, "\\slshape"),
+	new Pattern(PatternType.SCSHAPE, "\\scshape"),
+	new Pattern(PatternType.NORMALFONT, "\\normalfont"),
 	new Pattern(PatternType.BEGIN_VERBATIM, "\\begin{verbatim}"),
 	new Pattern(PatternType.END_VERBATIM, "\\end{verbatim}"),
 	new Pattern(PatternType.CAPTION, "\\caption{"),
@@ -417,6 +443,7 @@ public class LTGCheck {
 	int capStart = 0;
 	int fnLineNo = 0;
 	int capLineNo = 0;
+	boolean inBracket = false;
 	// boolean skipping = true;
 	int skipping = skip? 1: 0;
 	boolean inVerb = false;
@@ -470,6 +497,7 @@ public class LTGCheck {
 		continue;
 	    } else if (needCaptionOBrace
 		       && type != PatternType.OBRACE
+		       && type != PatternType.CBRACKET
 		       && type != PatternType.EOL) {
 		continue;
 	    }
@@ -562,12 +590,13 @@ public class LTGCheck {
 		break;
 	    case OBRACE:
 		if (needCaptionOBrace) {
+		    if (inBracket) break;;
 		    capStart = end;
 		    capLineNo = lineno;
 		    textStart = end;
 		    // depth was incremented by CAPTION1
 		    needCaptionOBrace = false;
-		    continue;
+		    break;
 		}
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
@@ -682,6 +711,7 @@ public class LTGCheck {
 		    captionDepth = depth;
 		    skipping++;
 		}
+		inBracket = true;
 		depth++;
 		textStart = end;
 		break;
@@ -734,6 +764,20 @@ public class LTGCheck {
 		    textStart = end;
 		}
 		break;
+	    case TEXTNORMAL:
+	    case TEXTIT:
+	    case TEXTUP:
+	    case TEXTSL:
+	    case TEXTMD:
+	    case TEXTRM:
+	    case TEXTSF:
+	    case EMPH:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		}
+		depth++;
+		break;
 	    case SLASHDQ:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
@@ -749,6 +793,37 @@ public class LTGCheck {
 		    acute = true;
 		}
 		depth++;
+		break;
+	    case MDSERIES:
+	    case BF:
+	    case BFSERIES:
+	    case RMSERIES:
+	    case SLFAMILY:
+	    case TT:
+	    case TTFAMILY:
+	    case UPSHAPE:
+	    case ITSERIES:
+	    case SLSHAPE:
+	    case SCSHAPE:
+	    case NORMALFONT:
+		if (skipping == 0) {
+		    int tlen = text.length();
+		    if (end < tlen) {
+			if(Character.isLetter(text.charAt(end))) {
+			    while (Character.isLetter(text.charAt(end))) {
+				end++;
+			    }
+			}
+			if (end < tlen) {
+			    char ch = text.charAt(end);
+			    if (ch == ' ' || ch == '\t') {
+				end++;
+			    }
+			}
+		    }
+		    sb.append(text.substring(textStart,start));
+		    textStart = end;
+		}
 		break;
 	    case SLASHDQ1:
 		if (skipping == 0) {
@@ -809,16 +884,9 @@ public class LTGCheck {
 		}
 		depth++;
 		break;
-	    case TEXTBF:
 	    case TEXTTT:
-	    case TEXTIT:
-	    case TEXTUP:
-	    case TEXTSL:
+	    case TEXTBF:
 	    case TEXTSC:
-	    case TEXTMD:
-	    case TEXTRM:
-	    case TEXTSF:
-	    case EMPH:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    sb.append("(text)");
@@ -978,7 +1046,12 @@ public class LTGCheck {
 		textStart = end;
 		break;
 	    case CBRACKET:
-		if (in_SS_STAR) {
+		if (inBracket) {
+		    inBracket = false;
+		    if (skipping == 0) {
+			textStart = end;
+		    }
+		} else 	if (in_SS_STAR) {
 		    if (skipping > 0) {
 			skipping--;
 			if (skipping == 0) {
