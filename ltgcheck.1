@@ -93,7 +93,12 @@ This option indicates that only chapter
 should be checked for errors, although all footnotes and captions will
 also be checked.  Chapter 0 refers to any text preceding the first chapter
 in the document.  This option applies to LaTeX files, but not files using
-other formats.
+other formats. If neither
+the
+.B \-\-chapter
+or the
+.B \-\- notes
+options are  provided, the full document will be checked.
 .TP
 .B \-\-ignoreLocalWords
 This option indicates that words added to a document-specific dictionary
@@ -106,6 +111,16 @@ should list words added to a document-specific dictionary used the
 emacs spelling software.  This is a LaTeX specific option.  The listed
 words appear at the end of the input file on lines starting with either
 "%LocalWords: " or "% LocalWords: ".
+.TP
+.B \-\-notes
+This option causes footnotes and captions to be checked for errors. If
+The B \-\-chapter option is not provided, the only portion of the
+document that will be checked are the footnotes and captions. If neither
+the
+.B \-\-chapter
+or the
+.B \-\- notes
+options are provided, the full document will be checked.
 .TP
 .B \-\-odt
 Indicates that the input file is an open document format text file. With

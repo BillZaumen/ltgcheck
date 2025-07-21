@@ -13,6 +13,33 @@ import org.bzdev.util.*;
 
 public class LTGCheck {
 
+    private static char graveAccent(char ch) {
+	switch (ch) {
+	case 'a':
+	    return '\u00E0';
+	case 'A':
+	    return '\u00C0';
+	case 'e':
+	    return '\u00E8';
+	case 'E':
+	    return '\u00C8';
+	case 'i':
+	    return '\u00EC';
+	case 'I':
+	    return '\u00CC';
+	case 'o':
+	    return '\u00F2';
+	case 'O':
+	    return '\u00D2';
+	case 'u':
+	    return '\u00F9';
+	case 'U':
+	    return '\u00D9';
+	default:
+	    return ch;
+	}
+    }
+
     private static char acuteAccent(char ch) {
 	switch (ch) {
 	case 'a':
@@ -39,6 +66,81 @@ public class LTGCheck {
 	    return ch;
 	}
     }
+
+    private static char circumflex(char ch) {
+	switch (ch) {
+	case 'a':
+	    return '\u00E2';
+	case 'A':
+	    return '\u00C2';
+	case 'e':
+	    return '\u00EA';
+	case 'E':
+	    return '\u00CA';
+	case 'i':
+	    return '\u00EE';
+	case 'I':
+	    return '\u00CE';
+	case 'o':
+	    return '\u00F4';
+	case 'O':
+	    return '\u00D4';
+	case 'u':
+	    return '\u00FB';
+	case 'U':
+	    return '\u00Db';
+	default:
+	    return ch;
+	}
+    }
+
+    private static char diaeresis(char ch) {
+	switch (ch) {
+	case 'a':
+	    return '\u00E4';
+	case 'A':
+	    return '\u00C4';
+	case 'e':
+	    return '\u00EB';
+	case 'E':
+	    return '\u00CB';
+	case 'i':
+	    return '\u00EF';
+	case 'I':
+	    return '\u00CF';
+	case 'o':
+	    return '\u00F6';
+	case 'O':
+	    return '\u00D6';
+	case 'u':
+	    return '\u00FC';
+	case 'U':
+	    return '\u00DC';
+	default:
+	    return ch;
+	}
+    }
+
+    private static char tilde(char ch) {
+	switch (ch) {
+	case 'a':
+	    return '\u00E3';
+	case 'A':
+	    return '\u00C3';
+	case 'n':
+	    return '\u00F1';
+	case 'N':
+	    return '\u00D1';
+	case 'o':
+	    return '\u00F5';
+	case 'O':
+	    return '\u00D5';
+	default:
+	    return ch;
+	}
+    }
+
+
 
     private static  char umlaut(char ch) {
 	switch (ch) {
@@ -175,8 +277,22 @@ public class LTGCheck {
 	CBRACKET,
 	SLASHDQ,
 	SLASHSQ,
+	SLASHBQ,
+	SLASHHAT,
+	SLASHTILDE,
+	SLASHH,
 	SLASHDQ1,
 	SLASHSQ1,
+	SLASHBQ1,
+	SLASHHAT1,
+	SLASHTILDE1,
+	SLASHO,
+	SLASHo,
+	SLASHAE,
+	SLASHae,
+	SLASHAA,
+	SLASHaa,
+	SLASHss,
 	BEGIN_DESCR,
 	END_DESCR,
 	BEGIN_VERSE,
@@ -273,8 +389,7 @@ public class LTGCheck {
 	new Pattern(PatternType.VERB, "\\verb+"),
 	new Pattern(PatternType.BEGIN_TABULAR, "\\begin{tabular}"),
 	new Pattern(PatternType.END_TABULAR, "\\end{tabular}"),
-	new Pattern(PatternType.SZ, "\\ss "),
-	new Pattern(PatternType.SZ, "\\ss{}"),
+	new Pattern(PatternType.SZ, "\\ss"),
 	new Pattern(PatternType.SS, "\\\\"),
 	new Pattern(PatternType.SS_STAR, "\\\\*["),
 	new Pattern(PatternType.OPEN_QUOTE, "``"),
@@ -314,8 +429,21 @@ public class LTGCheck {
 	new Pattern(PatternType.CBRACKET, "]"),
 	new Pattern(PatternType.SLASHDQ, "\\\"{"),
 	new Pattern(PatternType.SLASHSQ, "\\'{"),
+	new Pattern(PatternType.SLASHBQ, "\\`{"),
+	new Pattern(PatternType.SLASHHAT, "\\^{"),
+	new Pattern(PatternType.SLASHTILDE, "\\~{"),
+	new Pattern(PatternType.SLASHH, "\\H{"),
 	new Pattern(PatternType.SLASHDQ1, "\\\""),
 	new Pattern(PatternType.SLASHSQ1, "\\'"),
+	new Pattern(PatternType.SLASHBQ1, "\\`"),
+	new Pattern(PatternType.SLASHHAT1, "\\^"),
+	new Pattern(PatternType.SLASHTILDE1, "\\~"),
+	new Pattern(PatternType.SLASHO, "\\O"),
+	new Pattern(PatternType.SLASHo, "\\o"),
+	new Pattern(PatternType.SLASHAE, "\\AE"),
+	new Pattern(PatternType.SLASHae, "\\ae"),
+	new Pattern(PatternType.SLASHAA, "\\AA"),
+	new Pattern(PatternType.SLASHaa, "\\aa"),
 	new Pattern(PatternType.BEGIN_DESCR, "\\begin{description}"),
 	new Pattern(PatternType.END_DESCR, "\\end{description}"),
 	new Pattern(PatternType.BEGIN_VERSE, "\\begin{verse}"),
@@ -455,6 +583,10 @@ public class LTGCheck {
 	int lastend = 0;
 	boolean umlaut = false;
 	boolean acute = false;
+	boolean grave = false;
+	boolean hat = false;
+	boolean tilde = false;
+	boolean diaeresis = false;
 	int anydepth = 0;
 	boolean skipCBRACE = false;
 	int chapterCount = 0;
@@ -627,6 +759,34 @@ public class LTGCheck {
 			} else {
 			    sb.append(s);
 			}
+		    } else if (grave) {
+			if (s.length() == 1) {
+			    char ch = s.charAt(0);
+			    sb.append(graveAccent(ch));
+			} else {
+			    sb.append(s);
+			}
+		    } else if (hat) {
+			if (s.length() == 1) {
+			    char ch = s.charAt(0);
+			    sb.append(circumflex(ch));
+			} else {
+			    sb.append(s);
+			}
+		    } else if (tilde) {
+			if (s.length() == 1) {
+			    char ch = s.charAt(0);
+			    sb.append(tilde(ch));
+			} else {
+			    sb.append(s);
+			}
+		    } else if (diaeresis) {
+			if (s.length() == 1) {
+			    char ch = s.charAt(0);
+			    sb.append(diaeresis(ch));
+			} else {
+			    sb.append(s);
+			}
 		    } else {
 			sb.append(s);
 		    }
@@ -690,6 +850,10 @@ public class LTGCheck {
 		}
 		acute = false;
 		umlaut = false;
+		grave = false;
+		hat = false;
+		umlaut = false;
+		diaeresis = false;
 		break;
 	    case CAPTION:
 		if (skipping == 0) {
@@ -794,6 +958,38 @@ public class LTGCheck {
 		}
 		depth++;
 		break;
+	    case SLASHBQ:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    grave = true;
+		}
+		depth++;
+		break;
+	    case SLASHHAT:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    hat = true;
+		}
+		depth++;
+		break;
+	    case SLASHTILDE:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    tilde = true;
+		}
+		depth++;
+		break;
+	    case SLASHH:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    diaeresis = true;
+		}
+		depth++;
+		break;
 	    case MDSERIES:
 	    case BF:
 	    case BFSERIES:
@@ -846,6 +1042,45 @@ public class LTGCheck {
 			sb.append(acuteAccent(text.charAt(end)));
 		    } else {
 			acute = true;
+			depth++;
+		    }
+		    textStart = end + 1;
+		}
+		break;
+	    case SLASHBQ1:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    char ch = text.charAt(end);
+		    if (ch != '{') {
+			sb.append(graveAccent(text.charAt(end)));
+		    } else {
+			grave = true;
+			depth++;
+		    }
+		    textStart = end + 1;
+		}
+		break;
+	    case SLASHHAT1:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    char ch = text.charAt(end);
+		    if (ch != '{') {
+			sb.append(circumflex(text.charAt(end)));
+		    } else {
+			acute = true;
+			depth++;
+		    }
+		    textStart = end + 1;
+		}
+		break;
+	    case SLASHTILDE1:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    char ch = text.charAt(end);
+		    if (ch != '{') {
+			sb.append(tilde(text.charAt(end)));
+		    } else {
+			tilde = true;
 			depth++;
 		    }
 		    textStart = end + 1;
@@ -1061,6 +1296,7 @@ public class LTGCheck {
 		    in_SS_STAR = false;
 		}
 		break;
+		/*
 	    case SZ:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
@@ -1068,6 +1304,7 @@ public class LTGCheck {
 		    textStart = end;
 		}
 		break;
+		*/
 	    case SS_STAR:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
@@ -1087,6 +1324,52 @@ public class LTGCheck {
 		    sb.append(text.substring(textStart, start));
 		    sb.append(text.charAt(end-1));
 		    textStart = end;
+		}
+		break;
+	    case SLASHO:
+	    case SLASHo:
+	    case SLASHAE:
+	    case SLASHae:
+	    case SLASHAA:
+	    case SLASHaa:
+	    case SZ:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    int tlen = text.length();
+		    int end1 = end;
+		    if (end < tlen) {
+			while (end < tlen
+			       && Character.isLetter(text.charAt(end))) {
+			    end++;
+			}
+		    }
+		    if (end == end1) {
+			switch(type) {
+			case SLASHO:
+			    sb.append('\u00D8');
+			    break;
+			case SLASHo:
+			    sb.append('\u00F8');
+			    break;
+			case SLASHAE:
+			    sb.append('\u00C6');
+			    break;
+			case SLASHae:
+			    sb.append('\u00E6');
+			    break;
+			case SLASHAA:
+			    sb.append('\u00C5');
+			    break;
+			case SLASHaa:
+			    sb.append('\u00E5');
+			    break;
+			case SZ:
+			    sb.append('\u00DF');
+			default:
+			    break;
+			}
+			textStart = end;
+		    }
 		}
 		break;
 	    case SS:
@@ -1254,6 +1537,7 @@ public class LTGCheck {
 	boolean listLocalWords = false;
 	boolean listOffsetMap = false;
 	int partShown = -1;
+	boolean notesShown = false;
 	int argind = 0;
 
 	while (argind < argv.length) {
@@ -1323,6 +1607,8 @@ public class LTGCheck {
 				       + " must be a non-negative integer");
 		    System.exit(1);
 		}
+	    } else if (argv[argind].equals("--notes")) {
+		notesShown = true;
 	    } else if (argv[argind].equals("--print")) {
 		justPrint = true;
 	    } else if(argv[argind].equals("--raw")) {
@@ -1511,6 +1797,7 @@ public class LTGCheck {
 	int part = 0;
 	int base = 0;
 	for (String datum: data) {
+	    if (notesShown && partShown < 0) continue;
 	    if (part < partShown) {
 		base += datum.length();
 		part++;
@@ -1532,6 +1819,12 @@ public class LTGCheck {
 		base += datum.length();
 	    }
 	}
+	// If we limit output to a specific chapter and the user
+	// has not used the --notes option, just exit.
+	if (partShown >= 0 && notesShown == false) {
+	    System.exit(0);
+	}
+
 	if (noteList.size() > 0) {
 	    if (justPrint) {
 		System.out.println();
