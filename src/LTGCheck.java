@@ -649,10 +649,10 @@ public class LTGCheck {
 	int cbraceCount = 0;
 	int rbdepth = 0;
 	boolean needCaptionOBrace = false;
-	boolean endedQCTF = false;
-	int  qctfdepth = 0;
-	int qctfNLCount = 0;
-	boolean qctfSentenceEnded = true;
+	boolean endedQCETF = false;
+	int  qcetfdepth = 0;
+	int qcetfNLCount = 0;
+	boolean qcetfSentenceEnded = true;
 
 	for (ACMatcher.MatchResult mr: 	matcher.stream(text)
 		 .sorted((m1, m2) -> {
@@ -709,29 +709,6 @@ public class LTGCheck {
 	    if (in_COMMENT && type != PatternType.EOL) {
 		continue;
 	    }
-	    /*
-	    if (endedQCTF) {
-		if (skipping == 0) {
-		    if (type != PatternType.EOL) {
-			sb.append("() ");
-			endedQCTF = false;
-		    } else {
-			for (; textStart < start; textStart++) {
-			    if (!Character
-				.isWhitespace(text.charAt(textStart))) {
-				sb.append("() ");
-				endedQCTF = false;
-				break;
-			    } else {
-				textStart++;
-			    }
-			}
-		    }
-		} else {
-		    endedQCTF = false;
-		}
-	    }
-	    */
 
 	    /*
 	    System.out.println("processing " + type
@@ -794,9 +771,9 @@ public class LTGCheck {
 		    sb.setLength(len);
 		}
 		sb.append('\n');
-		if (qctfNLCount == 1) {
+		if (qcetfNLCount == 1) {
 		    sb.append("() ");
-		    qctfNLCount = 0;
+		    qcetfNLCount = 0;
 		}
 		if (scandepth == 0) {
 		    offsetMap.put(base + sb.length()-1, lineno);
@@ -1228,40 +1205,40 @@ public class LTGCheck {
 	    case BEGIN_CENTER:
 	    case BEGIN_TABLE:
 	    case BEGIN_FIG:
-		if (qctfdepth == 0) {
-		    qctfSentenceEnded =
+		if (qcetfdepth == 0) {
+		    qcetfSentenceEnded =
 			(lastVisCharBefore(text, start) == '.');
 		}
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    textStart = end;
-		    if (qctfdepth == 0) {
+		    if (qcetfdepth == 0) {
 			sb.append("()");
 		    }
 		}
-		qctfdepth++;
+		qcetfdepth++;
 		break;
 	    case END_QUOTE:
 	    case END_CENTER:
 	    case END_TABLE:
 	    case END_FIG:
-		qctfdepth--;
-		if (qctfdepth == 0 && !qctfSentenceEnded) {
-		    qctfNLCount = nlCount(text, end);
+		qcetfdepth--;
+		if (qcetfdepth == 0 && !qcetfSentenceEnded) {
+		    qcetfNLCount = nlCount(text, end);
 		}
 		if (skipping == 0) {
-		    if (!qctfSentenceEnded && qctfdepth == 0
-			&& qctfNLCount == 0) {
+		    if (!qcetfSentenceEnded && qcetfdepth == 0
+			&& qcetfNLCount == 0) {
 			sb.append("() ");
 		    }
 		    sb.append(text.substring(textStart, start));
 		    textStart = end;
-		    endedQCTF = true;
+		    endedQCETF = true;
 		}
-		if (qctfdepth == 0) {
-		    qctfSentenceEnded = true; // implies do nothing
+		if (qcetfdepth == 0) {
+		    qcetfSentenceEnded = true; // implies do nothing
 		}
-		if (qctfNLCount != 1) qctfNLCount = 0;
+		if (qcetfNLCount != 1) qcetfNLCount = 0;
 		break;
 	    case ITEM:
 		if (skipping == 0) {
@@ -1327,11 +1304,23 @@ public class LTGCheck {
 		}
 		break;
 	    case BEGIN_DMATH:
-	    case BEGIN_DMATH1:
 	    case BEGIN_EQ:
-	    case BEGIN_EQ1:
 	    case BEGIN_EQA:
 	    case BEGIN_EQA_STAR:
+		if (qcetfdepth == 0) {
+		    qcetfSentenceEnded =
+			(lastVisCharBefore(text, start) == '.');
+		}
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    sb.append("(x=1)");
+		    textStart = end;
+		}
+		qcetfdepth++;
+		skipping++;
+		break;
+	    case BEGIN_EQ1:
+	    case BEGIN_DMATH1:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    sb.append("(x=1)");
@@ -1381,13 +1370,31 @@ public class LTGCheck {
 		skipping++;
 		textStart = end;
 		break;
-	    case END_TABULAR:
-	    case END_DMATH:
-	    case END_DMATH1:
 	    case END_EQ:
-	    case END_EQ1:
+	    case END_DMATH:
 	    case END_EQA:
 	    case END_EQA_STAR:
+		skipping--;
+		qcetfdepth--;
+		if (qcetfdepth == 0 && !qcetfSentenceEnded) {
+		    qcetfNLCount = nlCount(text, end);
+		}
+		if (skipping == 0) {
+		    if (!qcetfSentenceEnded && qcetfdepth == 0
+			&& qcetfNLCount == 0) {
+			sb.append("() ");
+		    }
+		    endedQCETF = true;
+		}
+		textStart = end;
+		if (qcetfdepth == 0) {
+		    qcetfSentenceEnded = true; // implies do nothing
+		}
+		if (qcetfNLCount != 1) qcetfNLCount = 0;
+		break;
+	    case END_TABULAR:
+	    case END_EQ1:
+	    case END_DMATH1:
 	    case END_CODE:
 	    case END_VERBATIM:
 		in_VERBATIM = false;

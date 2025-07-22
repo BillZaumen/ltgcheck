@@ -26,9 +26,13 @@ even addition lines have been inserted before that line.
 For LaTeX files
 .B ltgcheck
 ignores various LaTeX commands and environments. For example, the text
-in section headings, tables, figures, and equations is excluded and
-hence not checked. Text formatted in fonts such as TT are also ignored
-as these are frequently variable names or computer commands.
+in section headings, various commands such as
+.BR \\texttt ,
+equations, verbatim environments, and some other
+constructs is excluded and hence not checked. Also some warnings about
+a sentence not starting with a capitalized word are suppressed.  As a
+result, one should manually check a document for errors as well.
+.PP
 For open-document-format files, most XML elements are ignored. A few
 are replaced with line breaks.  Line breaks are also created after
 anything that looks like the end of a sentence.
