@@ -542,6 +542,58 @@ public class LTGCheck {
 
     private static TreeSet<String> localWords = new TreeSet<String>();
 
+    private static char lastVisCharBefore(String text, int offset) {
+	offset--;
+	if (offset < 0) return '\0';
+	char ch = text.charAt(offset);;
+	int nlcount = 0;
+	while (Character.isWhitespace(ch)) {
+	    if (ch == '\n') nlcount++;
+	    offset--;
+	    if (offset < 0) {
+		break;
+	    }
+	    ch = text.charAt(offset);
+	}
+	if (offset < 0) {
+	    return '\0';
+	} else if (nlcount > 1) {
+	    return '.';
+	} else {
+	    return ch;
+	}
+    }
+
+    private static int nlCount(String text, int offset) {
+	int tlen = text.length();
+	int nlcount = 0;
+	if (offset < tlen) {
+	    char ch = text.charAt(offset);
+	    while (Character.isWhitespace(ch)
+		   || ch == '\\' || ch == '%') {
+		if (ch == '\n') {
+		    nlcount++;
+		} else if (ch == '\\') {
+		    return nlcount;
+		} else if (ch == '%') {
+		    offset++;
+		    while (offset < tlen && ch != '\n') {
+			offset++;
+			ch = text.charAt(offset);
+		    }
+		}
+		offset++;
+		if (offset >= tlen) {
+		    return nlcount;
+		} else {
+		    ch = text.charAt(offset);
+		}
+	    }
+	    return nlcount;
+	} else {
+	    return 0;
+	}
+    }
 
     private static ArrayList<String>
 	scan(Pattern[] patterns, int initialLineNo, boolean skip, String text)
@@ -597,6 +649,10 @@ public class LTGCheck {
 	int cbraceCount = 0;
 	int rbdepth = 0;
 	boolean needCaptionOBrace = false;
+	boolean endedQCTF = false;
+	int  qctfdepth = 0;
+	int qctfNLCount = 0;
+	boolean qctfSentenceEnded = true;
 
 	for (ACMatcher.MatchResult mr: 	matcher.stream(text)
 		 .sorted((m1, m2) -> {
@@ -653,6 +709,30 @@ public class LTGCheck {
 	    if (in_COMMENT && type != PatternType.EOL) {
 		continue;
 	    }
+	    /*
+	    if (endedQCTF) {
+		if (skipping == 0) {
+		    if (type != PatternType.EOL) {
+			sb.append("() ");
+			endedQCTF = false;
+		    } else {
+			for (; textStart < start; textStart++) {
+			    if (!Character
+				.isWhitespace(text.charAt(textStart))) {
+				sb.append("() ");
+				endedQCTF = false;
+				break;
+			    } else {
+				textStart++;
+			    }
+			}
+		    }
+		} else {
+		    endedQCTF = false;
+		}
+	    }
+	    */
+
 	    /*
 	    System.out.println("processing " + type
 			       +" " + start + " " + end);
@@ -714,6 +794,10 @@ public class LTGCheck {
 		    sb.setLength(len);
 		}
 		sb.append('\n');
+		if (qctfNLCount == 1) {
+		    sb.append("() ");
+		    qctfNLCount = 0;
+		}
 		if (scandepth == 0) {
 		    offsetMap.put(base + sb.length()-1, lineno);
 		}
@@ -1135,18 +1219,49 @@ public class LTGCheck {
 	    case END_ITEMIZE:
 	    case BEGIN_ENUMERATE:
 	    case END_ENUMERATE:
-	    case BEGIN_QUOTE:
-	    case END_QUOTE:
-	    case BEGIN_CENTER:
-	    case END_CENTER:
-	    case BEGIN_TABLE:
-	    case END_TABLE:
-	    case BEGIN_FIG:
-	    case END_FIG:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    textStart = end;
 		}
+		break;
+	    case BEGIN_QUOTE:
+	    case BEGIN_CENTER:
+	    case BEGIN_TABLE:
+	    case BEGIN_FIG:
+		if (qctfdepth == 0) {
+		    qctfSentenceEnded =
+			(lastVisCharBefore(text, start) == '.');
+		}
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    if (qctfdepth == 0) {
+			sb.append("()");
+		    }
+		}
+		qctfdepth++;
+		break;
+	    case END_QUOTE:
+	    case END_CENTER:
+	    case END_TABLE:
+	    case END_FIG:
+		qctfdepth--;
+		if (qctfdepth == 0 && !qctfSentenceEnded) {
+		    qctfNLCount = nlCount(text, end);
+		}
+		if (skipping == 0) {
+		    if (!qctfSentenceEnded && qctfdepth == 0
+			&& qctfNLCount == 0) {
+			sb.append("() ");
+		    }
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    endedQCTF = true;
+		}
+		if (qctfdepth == 0) {
+		    qctfSentenceEnded = true; // implies do nothing
+		}
+		if (qctfNLCount != 1) qctfNLCount = 0;
 		break;
 	    case ITEM:
 		if (skipping == 0) {
