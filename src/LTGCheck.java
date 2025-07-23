@@ -1697,7 +1697,10 @@ public class LTGCheck {
 	int argind = 0;
 
 	while (argind < argv.length) {
-	    if (argv[argind].equals("--text")) {
+	    if (argv[argind].equals("--")) {
+		argind++;
+		break;
+	    } else if (argv[argind].equals("--text")) {
 		textmode = true;
 		odtmode = false;
 	    } else if (argv[argind].equals("--odt")) {
