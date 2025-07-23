@@ -1,4 +1,4 @@
-VERSION = 0.5
+VERSION = 0.6
 DATE = $(shell date -R)
 
 SYS_BINDIR = /usr/bin

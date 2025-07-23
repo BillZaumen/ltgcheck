@@ -542,7 +542,8 @@ public class LTGCheck {
 
     private static TreeSet<String> localWords = new TreeSet<String>();
 
-    private static char lastVisCharBefore(String text, int offset) {
+    private static char lastVisCharBefore(String text, int offset,
+					  boolean nltest) {
 	offset--;
 	if (offset < 0) return '\0';
 	char ch = text.charAt(offset);;
@@ -555,9 +556,9 @@ public class LTGCheck {
 	    }
 	    ch = text.charAt(offset);
 	}
-	if (offset < 0) {
-	    return '\0';
-	} else if (nlcount > 1) {
+	if (offset < 0) return '\0';
+	if (nltest == false) return ch;
+	if (nlcount > 1) {
 	    return '.';
 	} else {
 	    return ch;
@@ -901,6 +902,23 @@ public class LTGCheck {
 			    noteList.add(new NoteEntry(fnLineNo,
 						       fnarray.get(0)));
 			}
+			if (!qcetfSentenceEnded) {
+			    qcetfNLCount = nlCount(text, end);
+			    if (skipping == 1) {
+				// we incremented skipping in FOOTNOTE
+				if (qcetfNLCount == 0) {
+				    char ch = text.charAt(end);
+				    if (ch == ' ' || ch == '\t') {
+					sb.append("()");
+				    } else {
+					sb.append("() ");
+				    }
+				}
+				endedQCETF = true;
+			    }
+			    qcetfSentenceEnded = true;
+			    if (qcetfNLCount != 1) qcetfNLCount = 0;
+			}
 			footnoteDepth = -1;
 		    }
 		    if (depth == skipToDepth) {
@@ -942,6 +960,8 @@ public class LTGCheck {
 		break;
 	    case FOOTNOTE:
 		if (skipping == 0) {
+		    qcetfSentenceEnded =
+			(lastVisCharBefore(text, start, true) == '.');
 		    sb.append(text.substring(textStart, start));
 		    skipToDepth = depth;
 		    footnoteDepth = depth;
@@ -1193,12 +1213,26 @@ public class LTGCheck {
 		depth++;
 		break;
 	    case BEGIN_ITEMIZE:
-	    case END_ITEMIZE:
 	    case BEGIN_ENUMERATE:
-	    case END_ENUMERATE:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    textStart = end;
+		}
+		break;
+	    case END_ITEMIZE:
+	    case END_ENUMERATE:
+		if (skipping == 0) {
+		    qcetfSentenceEnded =
+			(lastVisCharBefore(text, start, true) == '.');
+		    if (!qcetfSentenceEnded) {
+			qcetfNLCount = nlCount(text, end);
+			if (qcetfNLCount == 0) {
+			    sb.append("() ");
+			}
+		    }
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    if (qcetfNLCount != 1) qcetfNLCount = 0;
 		}
 		break;
 	    case BEGIN_QUOTE:
@@ -1207,7 +1241,7 @@ public class LTGCheck {
 	    case BEGIN_FIG:
 		if (qcetfdepth == 0) {
 		    qcetfSentenceEnded =
-			(lastVisCharBefore(text, start) == '.');
+			(lastVisCharBefore(text, start, true) == '.');
 		}
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
@@ -1309,7 +1343,7 @@ public class LTGCheck {
 	    case BEGIN_EQA_STAR:
 		if (qcetfdepth == 0) {
 		    qcetfSentenceEnded =
-			(lastVisCharBefore(text, start) == '.');
+			(lastVisCharBefore(text, start,true) == '.');
 		}
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
