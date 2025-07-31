@@ -25,13 +25,91 @@ even addition lines have been inserted before that line.
 .PP
 For LaTeX files
 .B ltgcheck
-ignores various LaTeX commands and environments. For example, the text
-in section headings, various commands such as
-.BR \\texttt ,
-equations, verbatim environments, and some other
-constructs is excluded and hence not checked. Also some warnings about
-a sentence not starting with a capitalized word are suppressed.  As a
-result, one should manually check a document for errors as well.
+ignores comments, and removes LaTex commands. It will not display the
+argument for section-heading commands, commands that do not provide
+any text (e.g.
+.BR \eusepackage ),
+and a some special cases such as
+.BR \everb .
+.B ltgcheck
+directives can also be placed in a LaTeX file, represented as stylized
+comments. These can appear anywhere in a LaTeX file and affect subsequent
+LaTeX commands and environments:
+.TP
+.BI %\ ltgcheck: \ NAME \ hide \ REPLACEMENT
+.TQ
+.BI %\ ltgcheck: \ NAME \ true \ REPLACEMENT
+.TQ
+.BI %\ ltgcheck: \ NAME \ show
+.TQ
+.BI %\ ltgcheck: \ NAME \ false
+The argument
+.I NAME
+is the name of a LaTeX environment or single-argument command, and
+must start with
+.B \e
+when the name refers to a command. The value
+.BR hide \ or \ true
+indicates that the contents of an environment or the argument of a
+command will be replaced by
+.IR REPLACEMENT ,
+which should start and end with parenthesis or a bracket.  The value
+.BR show \ or \ false
+indicates that the the contents of an environment or the argument of a
+command will be processed.  An ltgcheck directive will be ignored for
+the commands
+.BR \e" ,
+.BR \e' ,
+.BR \eH ,
+.BR \eO ,
+.BR \eo ,
+.BR \e^ ,
+.BR \e` ,
+.BR \e~ ,
+.BR \e\e ,
+.BR \eeauthor ,
+.BR \ecaption ,
+.BR \edate ,
+.BR \edocumentclass ,
+.BR \efootnote ,
+.BR \einclude ,
+.BR \eincludeonly ,
+.BR \eincludgraphics ,
+.BR \einput ,
+.BR \elabel ,
+.BR \enewcommand ,
+.BR \enewenvironment ,
+.BR \epageref ,
+.BR \eprovidecommand ,
+.BR \eref ,
+.BR \erenewcommand ,
+.BR \erenewenvironment ,
+.BR \eresizebox
+.BR \etitle ,
+and
+.BR \eusepackage .
+In addition, an
+.B ltgcheck
+directive will be ignored for the environments
+.BR displaymath ,
+.BR eqnarray ,
+.BR eqnarray* ,
+and
+.BR equation ,
+whose contents are replaced, and for
+the
+.B document
+environment, whose contents are processed. For example,
+.IP
+.B \enewenvironment{code}{\ett}{}
+.br
+.B %\ ltgcheck:\ hide\ (code)
+.IP
+will create a LaTeX enviroment whose contents will be displayed using a
+typewriter font, and that will be replaced with the string
+.B (code)
+when passed to LanguageTool so that LanguageTool will not generate
+inappropriate warnings about spelling.
 .PP
 For open-document-format files, most XML elements are ignored. A few
 are replaced with line breaks.  Line breaks are also created after
@@ -138,7 +216,7 @@ this option, standard input cannot be used.
 .B \-\-print
 Print the contents of a document after removing formatting directives.
 Formatting directives will be removed for open document format text files
-and LaTeX files.
+and LaTeX files. This option is mostly for debugging.
 .TP
 .B \-\-prompt
 For open document format text files, ask before creating a file whose
@@ -152,6 +230,13 @@ format text file.  This option cannot be used with standard input.
 .TP
 .B \-\-tex
 Indicates that the input file, or standard input, is a LaTeX file.
+.TP
+.B \-\-itex
+Indicates that the input file, or standard input, is a LaTeX file configured
+to be included in another LaTex document.  Such files will typically be
+missing a
+.B \ebegin{document}
+command.
 .TP
 .B \-\-text
 Indicates that the input file, or standard input, is a plain text file.

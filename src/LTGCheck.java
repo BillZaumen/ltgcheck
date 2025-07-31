@@ -3,8 +3,10 @@ import java.net.*;
 import java.util.stream.*;
 import java.util.zip.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -231,12 +233,19 @@ public class LTGCheck {
 	NORMALFONT,
 	BEGIN_VERBATIM,
 	END_VERBATIM,
+	BEGIN_VERBATIM_STAR,
+	END_VERBATIM_STAR,
 	CAPTION,
 	CAPTION1,
 	FOOTNOTE,
 	VERB,
+	BEGIN_TABBING,
+	KILL,
+	END_TABBING,
 	BEGIN_TABULAR,
 	END_TABULAR,
+	BEGIN_TABULAR_STAR,
+	END_TABULAR_STAR,
 	SZ,
 	SS,
 	SS_STAR,
@@ -308,12 +317,37 @@ public class LTGCheck {
 	DATE,
 	RESIZEBOX,
 	LDOTS,
-	SOFT_HYPHEN
+	SOFT_HYPHEN,
+	NEWCOMMAND,
+	RENEWCOMMAND,
+	PROVIDECOMMAND,
+	NEWENVIRONMENT,
+	RENEWENVIRONMENT,
+	USEPACKAGE,
+	USEPACKAGE1,
+	SLASH_ANY
     }
 
     private static class Pattern {
 	PatternType type;
 	String pattern;
+	public String getCommand() {
+	    if (pattern.startsWith("\\begin{")) {
+		if (type == PatternType.BEGIN_ANY) return null;
+		return pattern.substring(7, pattern.length()-1);
+	    } else if (pattern.startsWith("\\end{")) {
+		if (type == PatternType.END_ANY) return null;
+		return pattern.substring(5, pattern.length()-1);
+	    } else {
+		int plenm1 = pattern.length() - 1;
+		if (pattern.charAt(plenm1) =='{') {
+		    return pattern.substring(0, plenm1);
+		} else {
+		    return pattern;
+		}
+	    }
+	}
+
 	public Pattern(PatternType type, String pattern) {
 	    this.type = type;
 	    this.pattern = pattern;
@@ -345,8 +379,8 @@ public class LTGCheck {
 	new Pattern(PatternType.MAINMATTER, "\\mainmatter"),
 	new Pattern(PatternType.BEGIN_QUOTE, "\\begin{quote}"),
 	new Pattern(PatternType.END_QUOTE, "\\end{quote}"),
-	new Pattern(PatternType.BEGIN_CODE, "\\begin{code}"),
-	new Pattern(PatternType.END_CODE, "\\end{code}"),
+	// new Pattern(PatternType.BEGIN_CODE, "\\begin{code}"),
+	// new Pattern(PatternType.END_CODE, "\\end{code}"),
 	new Pattern(PatternType.SECTION, "\\section{"),
 	new Pattern(PatternType.SUBSECTION, "\\subsection{"),
 	new Pattern(PatternType.SUBSUBSECTION, "\\subsubsection{"),
@@ -383,12 +417,19 @@ public class LTGCheck {
 	new Pattern(PatternType.NORMALFONT, "\\normalfont"),
 	new Pattern(PatternType.BEGIN_VERBATIM, "\\begin{verbatim}"),
 	new Pattern(PatternType.END_VERBATIM, "\\end{verbatim}"),
+	new Pattern(PatternType.BEGIN_VERBATIM_STAR, "\\begin{verbatim*}"),
+	new Pattern(PatternType.END_VERBATIM_STAR, "\\end{verbatim*}"),
 	new Pattern(PatternType.CAPTION, "\\caption{"),
 	new Pattern(PatternType.CAPTION1, "\\caption["),
 	new Pattern(PatternType.FOOTNOTE, "\\footnote{"),
 	new Pattern(PatternType.VERB, "\\verb+"),
+	new Pattern(PatternType.BEGIN_TABBING, "\\begin{tabbing}"),
+	new Pattern(PatternType.KILL, "\\kill"),
+	new Pattern(PatternType.END_TABBING, "\\end{tabbing}"),
 	new Pattern(PatternType.BEGIN_TABULAR, "\\begin{tabular}"),
 	new Pattern(PatternType.END_TABULAR, "\\end{tabular}"),
+	new Pattern(PatternType.BEGIN_TABULAR_STAR, "\\begin{tabular*}"),
+	new Pattern(PatternType.END_TABULAR_STAR, "\\end{tabular*}"),
 	new Pattern(PatternType.SZ, "\\ss"),
 	new Pattern(PatternType.SS, "\\\\"),
 	new Pattern(PatternType.SS_STAR, "\\\\*["),
@@ -444,10 +485,6 @@ public class LTGCheck {
 	new Pattern(PatternType.SLASHae, "\\ae"),
 	new Pattern(PatternType.SLASHAA, "\\AA"),
 	new Pattern(PatternType.SLASHaa, "\\aa"),
-	new Pattern(PatternType.BEGIN_DESCR, "\\begin{description}"),
-	new Pattern(PatternType.END_DESCR, "\\end{description}"),
-	new Pattern(PatternType.BEGIN_VERSE, "\\begin{verse}"),
-	new Pattern(PatternType.END_VERSE, "\\end{verse}"),
 	new Pattern(PatternType.INPUT, "\\input{"),
 	new Pattern(PatternType.INCLUDE, "\\include{"),
 	new Pattern(PatternType.INCLUDE_ONLY, "\\includeonly{"),
@@ -459,7 +496,15 @@ public class LTGCheck {
 	new Pattern(PatternType.DATE, "\\date"),
 	new Pattern(PatternType.RESIZEBOX, "\\resizebox{"),
 	new Pattern(PatternType.LDOTS, "\\ldots"),
-	new Pattern(PatternType.SOFT_HYPHEN, "\\-")
+	new Pattern(PatternType.SOFT_HYPHEN, "\\-"),
+	new Pattern(PatternType.NEWCOMMAND, "\\newcommand{"),
+	new Pattern(PatternType.RENEWCOMMAND, "\\renewcommand{"),
+	new Pattern(PatternType.PROVIDECOMMAND, "\\providecommand{"),
+	new Pattern(PatternType.NEWENVIRONMENT, "\\newenvironment{"),
+	new Pattern(PatternType.RENEWENVIRONMENT, "\\renewenvironment{"),
+	new Pattern(PatternType.USEPACKAGE, "\\usepackage{"),
+	new Pattern(PatternType.USEPACKAGE1, "\\usepackage["),
+	new Pattern(PatternType.SLASH_ANY, "\\")
     };
 
     private static Pattern textPatterns[] = {
@@ -472,7 +517,7 @@ public class LTGCheck {
 	    c = (HttpURLConnection) url.openConnection();
 	    c.setRequestMethod("POST");
 	} catch(Exception e) {
-	    System.err.println(e.getMessage());
+	    System.err.println("ltgcheck: " + e.getMessage());
 	    System.exit(1);
 	}
 	String req = "language=en-US&text="
@@ -492,7 +537,7 @@ public class LTGCheck {
 	    os.flush();
 	    os.close();
 	} catch (Exception e) {
-	    System.err.println(e.getMessage());
+	    System.err.println("ltgcheck: " + e.getMessage());
 	    System.exit(1);
 	}
 	// System.out.println("response code = " + c.getResponseCode());
@@ -596,10 +641,144 @@ public class LTGCheck {
 	}
     }
 
+    private static class Directive {
+	PatternType type;
+	String cmd;
+	int nargs;
+	boolean replace;
+	String replacement;
+
+	public Directive(PatternType type, String cmd, int nargs,
+			 boolean replace,
+			 String replacement)
+	{
+	    this.type = type;
+	    this.cmd = cmd;
+	    this.nargs = nargs;
+	    this.replace = replace;
+	    this.replacement = replacement;
+	}
+
+	public String toString() {
+	    return "[LTGCheck.Directive type = " + type
+		+ ", cmd = " + cmd
+		+", nargs = " + nargs
+		+", replace = " + replace
+		+", replacement = \"" + replacement + "\"]";
+	}
+    }
+
+    private static class Directives {
+	HashMap<PatternType,Directive> typeMap = new HashMap<>();
+	HashMap<String,Directive> cmdMap = new HashMap<>();
+	public Directive get(PatternType type, String cmd) {
+	    Directive directive;
+	    switch(type) {
+	    case SLASH_ANY:
+	    case BEGIN_ANY:
+		directive = cmdMap.get(cmd);
+		break;
+	    default:
+	        directive = typeMap.get(type);
+	    }
+	    if (directive == null) {
+		directive = new Directive(type, cmd, 0, false, "");
+	    }
+	    return directive;
+	}
+	public void put(PatternType type, String cmd, int nargs,
+			boolean replace, String replacement)
+	{
+	    Directive directive = new
+		Directive(type, cmd, nargs, replace, replacement);
+	    if (cmd.charAt(0) == '\\') {
+		if (type == PatternType.SLASH_ANY) {
+		    cmdMap.put(cmd, directive);
+		} else {
+		    typeMap.put(type, directive);
+		}
+	    } else {
+		if (type == PatternType.BEGIN_ANY) {
+		    cmdMap.put(cmd, directive);
+		} else {
+		    typeMap.put(type, directive);
+		}
+	    }
+	}
+    }
+    private static Directives directives = new Directives();
+
+    private static void processDirective(Pattern[] patterns, ACMatcher matcher,
+					  String cmd, int nargs,
+					  boolean replace,
+					  String replacement)
+	throws IllegalArgumentException
+    {
+	PatternType type = null;
+	if (cmd.charAt(0) == '\\') {
+	    type = PatternType.SLASH_ANY;
+	    for (ACMatcher.MatchResult mr: matcher.stream(cmd + "{")
+		 .sorted((m1, m2) -> {
+			 int s1 = m1.getStart();
+			 int s2 = m2.getStart();
+			 if (s1 != s2) {
+			     return (s1 - s2);
+			 } else {
+			     int e1 = m1.getEnd();
+			     int e2 = m2.getEnd();
+			     return (e2 - e1);
+			 }
+		     })
+		     .toArray(ACMatcher.MatchResult[]::new)) {
+		int index = mr.getIndex();
+		type = patterns[index].type;
+		break;
+	    }
+	} else {
+	    String txt = "\\begin{" + cmd +"}";
+	    type = PatternType.BEGIN_ANY;
+	    for (ACMatcher.MatchResult mr: matcher.stream(txt)
+		 .sorted((m1, m2) -> {
+			 int s1 = m1.getStart();
+			 int s2 = m2.getStart();
+			 if (s1 != s2) {
+			     return (s1 - s2);
+			 } else {
+			     int e1 = m1.getEnd();
+			     int e2 = m2.getEnd();
+			     return (e2 - e1);
+			 }
+		     })
+		     .toArray(ACMatcher.MatchResult[]::new)) {
+		int index = mr.getIndex();
+		type = patterns[index].type;
+		break;
+	    }
+	}
+	directives.put(type, cmd, nargs, replace, replacement);
+    }
+
+
     private static ArrayList<String>
 	scan(Pattern[] patterns, int initialLineNo, boolean skip, String text)
     {
 	offsetMap.clear();
+	/*
+	for (Pattern p: patterns) {
+	    switch(p.type) {
+	    case TEXTTT:
+		directives.put(PatternType.TEXTTT, "\\texttt", 1, true,
+			       "(text)");
+		break;
+	    case BEGIN_TABULAR:
+		directives.put(PatternType.BEGIN_TABULAR, "tabular", 0, true,
+			       "(skipping)");
+		break;
+	    default:
+		break;
+	    }
+	}
+	*/
 	return scan(patterns, initialLineNo, skip, text, 0);
     }
     private static ArrayList<String>
@@ -620,6 +799,7 @@ public class LTGCheck {
 	int captionDepth = -1;
 	int textStart = 0;
 	int textEnd = 0;
+	int verbatimTextStart = 0;
 	int fnStart = 0;
 	int capStart = 0;
 	int fnLineNo = 0;
@@ -627,11 +807,14 @@ public class LTGCheck {
 	boolean inBracket = false;
 	// boolean skipping = true;
 	int skipping = skip? 1: 0;
+	boolean includeMode = (!skip && scandepth == 0);
+
 	boolean inVerb = false;
 	boolean in_SS_STAR = false;
 	boolean in_INLINE_EQ = false;
 	boolean in_COMMENT = false;
 	boolean in_VERBATIM = false;
+	boolean in_VERBATIM_STAR = false;
 	int verbatimSBLEN = 0;
 	int lastend = 0;
 	boolean umlaut = false;
@@ -654,6 +837,11 @@ public class LTGCheck {
 	int  qcetfdepth = 0;
 	int qcetfNLCount = 0;
 	boolean qcetfSentenceEnded = true;
+	int tabdepth = 0;
+	int taboffset = 0;
+	int tabnlcount = 0;
+	Stack<Directive> directiveStack = new Stack<>();
+	// String cmd;
 
 	for (ACMatcher.MatchResult mr: 	matcher.stream(text)
 		 .sorted((m1, m2) -> {
@@ -671,9 +859,10 @@ public class LTGCheck {
 
 	    int index = mr.getIndex();
 	    PatternType type = patterns[index].type;
-
+	    String command = patterns[index].getCommand();
 	    if (in_VERBATIM
 		&& type != PatternType.END_VERBATIM
+		&& type != PatternType.END_VERBATIM_STAR
 		&& type != PatternType.EOL) {
 		continue;
 	    } else if (inVerb
@@ -706,7 +895,9 @@ public class LTGCheck {
 						+ type);
 	    }
 
-	    if (start < lastend) continue;
+	    if (start < lastend) {
+		continue;
+	    }
 	    if (in_COMMENT && type != PatternType.EOL) {
 		continue;
 	    }
@@ -718,6 +909,7 @@ public class LTGCheck {
 	    lastend = end;
 	    switch(type) {
 	    case EOL:
+		tabnlcount++;
 		if (in_VERBATIM || inVerb) {
 		    if (verbatimSBLEN > 0) {
 			if (scandepth == 0) {
@@ -734,23 +926,48 @@ public class LTGCheck {
 		if (in_COMMENT) {
 		    in_COMMENT = false;
 		    skipping--;
-		    if (!startDocSeen || endDocSeen) {
-			// Look for emacs local words.
-			String line = text.substring(startOfComment, start)
-			    .replaceAll("\\h+"," ")
-			    .replaceAll("^ ", "")
-			    .replaceAll("^%+\\h?", "");
-			// System.out.println("line = " + line);
-			if (line.startsWith("LocalWords: ")) {
-			    line = line.substring("LocalWords: ".length());
-			    String[] words = line.split(" ");
-			    for (String word: words) {
-				if (word.length() != 0) {
-				    localWords.add(word);
-				}
+		    String line = text.substring(startOfComment, start)
+			.replaceAll("\\h+"," ")
+			.replaceAll("^ ", "")
+			.replaceAll("^%+\\h?", "");
+		    // Look for emacs local words.
+		    // System.out.println("line = " + line);
+		    if ((includeMode || !startDocSeen || endDocSeen)
+			    && line.startsWith("LocalWords: ")) {
+			line = line.substring("LocalWords: ".length());
+			String[] words = line.split(" ");
+			for (String word: words) {
+			    if (word.length() != 0) {
+				localWords.add(word);
 			    }
 			}
-			if (endDocSeen) continue;
+		    } else if (line.startsWith("ltgcheck: ")) {
+			line = line.substring("ltgcheck: ".length());
+			String[] words = line.split(" ");
+			int len = words.length;
+			if (len == 1) {
+			    String cmd = words[0];
+			    processDirective(patterns, matcher, cmd,
+					     0, false, "");
+			} else if (len > 1) {
+			    String cmd = words[0];
+			    if (words[1].equals("hide")) words[1] = "true";
+			    else if (words[1].equals("show"))
+				words[1] = "false";
+			    boolean replace = Boolean
+				.parseBoolean(words[1]);
+			    String replacement = words.length == 2? "":
+				words[2];
+			    for (int i = 3; i < words.length; i++) {
+				replacement = replacement
+				    + (" " + words[i]);
+			    }
+			    processDirective(patterns, matcher, cmd, 1,
+					     replace, replacement);
+			}
+		    }
+		    if (endDocSeen) {
+			continue;
 		    }
 		    sb.append("\n");
 		    if (scandepth == 0) {
@@ -784,7 +1001,7 @@ public class LTGCheck {
 		break;
 	    case OBRACE:
 		if (needCaptionOBrace) {
-		    if (inBracket) break;;
+		    if (inBracket) break;
 		    capStart = end;
 		    capLineNo = lineno;
 		    textStart = end;
@@ -796,7 +1013,8 @@ public class LTGCheck {
 		    sb.append(text.substring(textStart, start));
 		    textStart = end;
 		}
-		depth++;
+		depth++
+;
 		break;
 	    case CBRACE:
 		if (skipCBRACE) {
@@ -884,7 +1102,6 @@ public class LTGCheck {
 		    }
 		    if (depth == footnoteDepth) {
 			String fn = text.substring(fnStart, start);
-			// System.out.println("fn = " + fn);
 			/*
 			System.out.println("footnote"
 					   + " (depth = " + depth + "): " + fn);
@@ -942,6 +1159,10 @@ public class LTGCheck {
 		    skipping++;
 		    capStart = end;
 		    capLineNo = lineno;
+		} else {
+		    captionDepth = depth;
+		    capStart = end;
+		    capLineNo = lineno;
 		}
 		depth++;
 		textStart = end;
@@ -953,6 +1174,9 @@ public class LTGCheck {
 		    skipToDepth = depth;
 		    captionDepth = depth;
 		    skipping++;
+		} else {
+		    captionDepth = depth;
+		    needCaptionOBrace = true;
 		}
 		inBracket = true;
 		depth++;
@@ -966,6 +1190,10 @@ public class LTGCheck {
 		    skipToDepth = depth;
 		    footnoteDepth = depth;
 		    skipping++;
+		    fnStart = end;
+		    fnLineNo = lineno;
+		} else if (captionDepth == -1) {
+		    footnoteDepth = depth;
 		    fnStart = end;
 		    fnLineNo = lineno;
 		}
@@ -983,9 +1211,9 @@ public class LTGCheck {
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    result.add(sb.toString());
-		    endDocSeen = true;
 		    // System.out.println("endDocSeen = " + endDocSeen);
 		}
+		endDocSeen = true;
 		//return result;
 		continue;
 	    case MAKETITLE:
@@ -1009,6 +1237,9 @@ public class LTGCheck {
 		    textStart = end;
 		}
 		break;
+	    case TEXTTT:
+	    case TEXTBF:
+	    case TEXTSC:
 	    case TEXTNORMAL:
 	    case TEXTIT:
 	    case TEXTUP:
@@ -1018,8 +1249,16 @@ public class LTGCheck {
 	    case TEXTSF:
 	    case EMPH:
 		if (skipping == 0) {
+		    Directive directive = directives.get(type, command);
 		    sb.append(text.substring(textStart, start));
+		    if (directive.replace) {
+			sb.append(directive.replacement);
+		    }
 		    textStart = end;
+		    if(directive.replace) {
+			skipToDepth = depth;
+			skipping++;
+		    }
 		}
 		depth++;
 		break;
@@ -1190,8 +1429,6 @@ public class LTGCheck {
 	    case SECTION:
 	    case SUBSECTION:
 	    case SUBSUBSECTION:
-	    case LABEL:
-	    case THEPAGE:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    textStart = end;
@@ -1200,18 +1437,54 @@ public class LTGCheck {
 		}
 		depth++;
 		break;
+	    case LABEL:
+	    case THEPAGE:
+	    case USEPACKAGE:
+		if (skipping == 0) {
+		    sb.append(text.substring(textStart, start));
+		    textStart = end;
+		    skipToDepth = depth;
+		    skipping++;
+		}
+		depth++;
+		break;
+	    case USEPACKAGE1:
+		{
+		    int tlen = text.length();
+		    while (end < tlen) {
+			char ch = text.charAt(end);
+			end++;
+			if (ch == '}') {
+			    break;
+			}
+		    }
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    textStart = end;
+		    lastend = end;
+		}
+		break;
+		/*
 	    case TEXTTT:
 	    case TEXTBF:
 	    case TEXTSC:
 		if (skipping == 0) {
+		    Directive directive = directives.get(type, command);
 		    sb.append(text.substring(textStart, start));
-		    sb.append("(text)");
+		    // sb.append("(text)");
+		    if (directive.replace) {
+			sb.append(directive.replacement);
+		    }
 		    textStart = end;
-		    skipToDepth = depth;
-		    skipping++;
+		    if (directive.replace) {
+			skipToDepth = depth;
+			skipping++;
+		    }
 		}
 		depth++;
 		break;
+		*/
 	    case BEGIN_ITEMIZE:
 	    case BEGIN_ENUMERATE:
 		if (skipping == 0) {
@@ -1239,40 +1512,59 @@ public class LTGCheck {
 	    case BEGIN_CENTER:
 	    case BEGIN_TABLE:
 	    case BEGIN_FIG:
-		if (qcetfdepth == 0) {
-		    qcetfSentenceEnded =
-			(lastVisCharBefore(text, start, true) == '.');
-		}
-		if (skipping == 0) {
-		    sb.append(text.substring(textStart, start));
-		    textStart = end;
+		{
 		    if (qcetfdepth == 0) {
-			sb.append("()");
+			qcetfSentenceEnded =
+			    (lastVisCharBefore(text, start, true) == '.');
 		    }
+		    Directive directive = directives
+			.get(type, text.substring(start+7, end-1));
+		    directiveStack.push(directive);
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+			textStart = end;
+			if (qcetfdepth == 0) {
+			    sb.append("()");
+			}
+			if (directive.replace) {
+			    sb.append(directive.replacement);
+			    skipping++;
+			}
+		    }
+		    qcetfdepth++;
 		}
-		qcetfdepth++;
 		break;
 	    case END_QUOTE:
 	    case END_CENTER:
 	    case END_TABLE:
 	    case END_FIG:
-		qcetfdepth--;
-		if (qcetfdepth == 0 && !qcetfSentenceEnded) {
-		    qcetfNLCount = nlCount(text, end);
-		}
-		if (skipping == 0) {
-		    if (!qcetfSentenceEnded && qcetfdepth == 0
-			&& qcetfNLCount == 0) {
-			sb.append("() ");
+		{
+		    qcetfdepth--;
+		    if (qcetfdepth == 0 && !qcetfSentenceEnded) {
+			qcetfNLCount = nlCount(text, end);
 		    }
-		    sb.append(text.substring(textStart, start));
-		    textStart = end;
-		    endedQCETF = true;
+		    if (skipping == 0) {
+			if (!qcetfSentenceEnded && qcetfdepth == 0
+			    && qcetfNLCount == 0) {
+			    sb.append("() ");
+			}
+			sb.append(text.substring(textStart, start));
+			textStart = end;
+			endedQCETF = true;
+		    }
+		    Directive directive = directiveStack.pop();
+		    if (directive.replace) {
+			skipping--;
+			textStart = end;
+			if (skipping == 0) {
+			    endedQCETF = true;
+			}
+		    }
+		    if (qcetfdepth == 0) {
+			qcetfSentenceEnded = true; // implies do nothing
+		    }
+		    if (qcetfNLCount != 1) qcetfNLCount = 0;
 		}
-		if (qcetfdepth == 0) {
-		    qcetfSentenceEnded = true; // implies do nothing
-		}
-		if (qcetfNLCount != 1) qcetfNLCount = 0;
 		break;
 	    case ITEM:
 		if (skipping == 0) {
@@ -1369,14 +1661,100 @@ public class LTGCheck {
 		    textStart = end;
 		}
 		break;
-	    case BEGIN_TABULAR:
-	    case BEGIN_CODE:
-		if (skipping == 0) {
-		    sb.append(text.substring(textStart, start));
-		    sb.append("(skipping)");
+	    case BEGIN_TABBING:
+		{
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+			textStart = end;
+		    }
+		    Directive directive = directives
+			.get(type, "tabbing");
+		    directiveStack.push(directive);
+		    if (directive.replace) {
+			skipping++;
+			sb.append(directive.replacement);
+		    }
+		    taboffset = sb.length();
+		    tabnlcount = 0;
+		    tabdepth++;
+		}
+		break;
+	    case KILL:
+		if (skipping == 0 && tabdepth > 0) {
+		    sb.setLength(taboffset);
+		    for (int i = 0; i < tabnlcount; i++) {
+			sb.append('\n');
+		    }
+		}
+		textStart = end;
+		break;
+	    case END_TABBING:
+		{
+		    tabdepth--;
+		    tabnlcount = 0;
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    Directive directive = directiveStack.pop();
+		    if (directive.replace) {
+			skipping--;
+		    }
 		    textStart = end;
 		}
-		skipping++;
+		break;
+	    case BEGIN_TABULAR:
+	    case BEGIN_TABULAR_STAR:
+		// case BEGIN_CODE:
+		{
+		    Directive directive =(type == PatternType.BEGIN_TABULAR)?
+			directives.get(PatternType.BEGIN_TABULAR, "tabular"):
+			directives.get(PatternType.BEGIN_TABULAR_STAR,
+				       "tabular*");
+		    directiveStack.push(directive);
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+			if (directive.replace) {
+			    sb.append(directive.replacement);
+			}
+			// sb.append("(skipping)");
+			int tlen = text.length();
+			// tabular takes and argument, which we have
+			// to skip.
+			char ch = (end < tlen)? text.charAt(end): '\0';
+			while (end < tlen && ch != '{') {
+			    end++;
+			    ch = (end < tlen)? text.charAt(end): '\0';
+			}
+			if (ch == '{') {
+			    int tdepth = 1;
+			    while (end < tlen && tdepth > 0) {
+				end++;
+				ch = (end < tlen)? text.charAt(end): '\0';
+				if (ch == '%') {
+				    // skip comment (pathological case)
+				    while (end < tlen && ch != '\n') {
+					end++;
+					ch = (end < tlen)? text.charAt(end):
+					    '\0';
+				    }
+				} else if (ch == '{') {
+				    tdepth++;
+				} else if (ch == '}') {
+				    tdepth--;
+				} else if (ch == '\n') {
+				    lineno++;
+				}
+			    }
+			    if (end < tlen) end++;
+			    // have to skip over some brackets, etc.
+			    lastend = end;
+			}
+			textStart = end;
+		    }
+		    if (directive.replace) {
+			skipping++;
+		    }
+		}
 		break;
 	    case PLUS:
 		if (inVerb) {
@@ -1395,14 +1773,26 @@ public class LTGCheck {
 		}
 		break;
 	    case BEGIN_VERBATIM:
+	    case BEGIN_VERBATIM_STAR:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
-		    sb.append("(skipping)");
+		    Directive directive =
+			(type == PatternType.BEGIN_VERBATIM)?
+			directives.get(PatternType.BEGIN_VERBATIM, "verbatim"):
+			directives.get(PatternType.BEGIN_VERBATIM_STAR,
+				       "verbatim*");
+		    if (directive.replace) {
+			sb.append(directive.replacement);
+		    }
+		    // sb.append("(skipping)");
 		    verbatimSBLEN = sb.length();
+		    verbatimTextStart = end;
+		    in_VERBATIM = true;
+		    in_VERBATIM_STAR =
+			(type == PatternType.BEGIN_VERBATIM_STAR);
+		    textStart = end;
 		}
-		in_VERBATIM = true;
 		skipping++;
-		textStart = end;
 		break;
 	    case END_EQ:
 	    case END_DMATH:
@@ -1427,14 +1817,51 @@ public class LTGCheck {
 		if (qcetfNLCount != 1) qcetfNLCount = 0;
 		break;
 	    case END_TABULAR:
+	    case END_TABULAR_STAR:
+		{
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    Directive directive = directiveStack.pop();
+		    if (directive.replace) {
+			skipping--;
+		    }
+		    textStart = end;
+		}
+		break;
 	    case END_EQ1:
 	    case END_DMATH1:
-	    case END_CODE:
-	    case END_VERBATIM:
-		in_VERBATIM = false;
-		verbatimSBLEN = 0;
+		// case END_CODE:
 		skipping--;
 		textStart = end;
+		break;
+	    case END_VERBATIM:
+		if (in_VERBATIM_STAR) {
+		    break;
+		}
+	    case END_VERBATIM_STAR:
+		{
+		    if (skipping == 1) {
+			if (type == PatternType.END_VERBATIM_STAR
+			    && !in_VERBATIM_STAR) {
+			    break;
+			}
+			Directive directive =
+			    (type == PatternType.END_VERBATIM)?
+			    directives.get(PatternType.BEGIN_VERBATIM,
+					   "verbatim"):
+			    directives.get(PatternType.BEGIN_VERBATIM_STAR,
+					   "verbatim*");
+			in_VERBATIM = false;
+			in_VERBATIM_STAR = false;
+			verbatimSBLEN = 0;
+			if (!directive.replace) {
+			    sb.append(text.substring(verbatimTextStart, start));
+			}
+			textStart = end;
+		    }
+		    skipping--;
+		}
 		break;
 	    case CBRACKET:
 		if (inBracket) {
@@ -1533,6 +1960,10 @@ public class LTGCheck {
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
 		    sb.append(' ');
+		    if (type == PatternType.SS && tabdepth > 0) {
+			taboffset = sb.length();
+			tabnlcount = 0;
+		    }
 		    textStart = end;
 		}
 		break;
@@ -1587,20 +2018,51 @@ public class LTGCheck {
 		break;
 	    case BEGIN_ANY:
 		skipCBRACE = true;
-		if (skipping == 0) {
-		    sb.append(text.substring(textStart, start));
+		{
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    StringBuilder sb2 = new StringBuilder();
 		    int anyind = end;
 		    char ch = text.charAt(anyind);
 		    while (ch != '}') {
+			sb2.append(ch);
 			ch = text.charAt(++anyind);
 		    }
-		    textStart = anyind+1;
+		    String cmd = sb2.toString();
+		    Directive directive = directives.get(PatternType.BEGIN_ANY,
+							 cmd);
+		    directiveStack.push(directive);
+		    if (skipping == 0) {
+			textStart = anyind+1;
+		    }
+		    // anydepth++;
+		    if (directive.replace) {
+			sb.append(directive.replacement);
+			skipping++;
+		    }
 		}
-		anydepth++;
-		skipping++;
 		break;
 	    case END_ANY:
 		skipCBRACE = true;
+		{
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    Directive directive = directiveStack.pop();
+		    if (directive.replace) {
+			skipping--;
+		    }
+		    if (skipping == 0) {
+			int anyind = end;
+			char ch = text.charAt(anyind);
+			while (ch != '}') {
+			    ch = text.charAt(++anyind);
+			}
+			textStart = anyind+1;
+		    }
+		}
+		/*
 		anydepth--;
 		skipping--;
 		if (anydepth == 0) {
@@ -1611,15 +2073,151 @@ public class LTGCheck {
 		    }
 		    textStart = anyind+1;
 		}
+		*/
 		break;
 	    case COMMENT:
 		if (skipping == 0) {
 		    sb.append(text.substring(textStart, start));
-		    skipping++;
-		    in_COMMENT = true;
-		    startOfComment = end;
+		}
+		skipping++;
+		in_COMMENT = true;
+		startOfComment = end;
+		break;
+	    case NEWCOMMAND:
+	    case RENEWCOMMAND:
+	    case PROVIDECOMMAND:
+		{
+		    int tlen = text.length();
+		    boolean first = true;
+		    boolean checkBracket = true;
+		    int bdepth = 0;
+		    while (end < tlen) {
+			char ch = text.charAt(end);
+			if (first) {
+			    if (ch == '}') {
+				first = false;
+				end++;
+				continue;
+			    } else {
+				end++;
+				continue;
+			    }
+			}
+			if (checkBracket && ch == '[') {
+			    while (end < tlen && ch != ']') {
+				end++;
+				ch = text.charAt(end);
+			    }
+			    if (end == tlen) break;
+			    end++;
+			    checkBracket = false;
+			    continue;
+			}
+			if (ch == '\\') {
+			    // prevents processing \{ or \}
+			    end += 2;
+			    continue;
+			}
+			if (ch == '{') bdepth++;
+			else if (ch == '}') bdepth--;
+			end++;
+			if (bdepth == 0) {
+			    break;
+			}
+		    }
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    textStart = end;
+		    lastend = end;
 		}
 		break;
+	    case NEWENVIRONMENT:
+	    case RENEWENVIRONMENT:
+		{
+		    int tlen = text.length();
+		    boolean first = true;
+		    int bdepth = 0;
+		    int count = 0;
+		    while (end < tlen) {
+			char ch = text.charAt(end);
+			if (first) {
+			    if (ch == '}') {
+				first = false;
+				end++;
+				continue;
+			    } else {
+				end++;
+				continue;
+			    }
+			}
+			if (ch == '\\') {
+			    // prevents processing \{ or \}
+			    end++;
+			    ch = text.charAt(end);
+			    if (ch == '{' || ch == '}') {
+				end++;
+			    }
+			    continue;
+			}
+			if (ch == '{') bdepth++;
+			else if (ch == '}') bdepth--;
+			end++;
+			if (bdepth == 0) {
+			    count++;
+			    if (count == 2) {
+				break;
+			    }
+			}
+		    }
+		    if (skipping == 0) {
+			sb.append(text.substring(textStart, start));
+		    }
+		    textStart = end;
+		    lastend = end;
+		}
+		break;
+	    case SLASH_ANY:
+		{
+		    int tlen = text.length();
+		    if (end < tlen) {
+			char ech = (end < tlen)? text.charAt(end): '\0';
+			if (!Character.isLetter(ech)
+			    && !Character.isWhitespace(ech)) {
+			    if (skipping == 0) {
+				sb.append(text.substring(textStart, start));
+			    }
+			    textStart = end+1;
+			    break;
+			}
+		    }
+		    if (end < tlen) {
+			String cmd = null;
+			while (end < tlen) {
+			    char ch = text.charAt(end);
+			    if (Character.isLetter(ch)) {
+				end++;
+			    } else {
+				cmd = text.substring(start, end);
+				if (ch == ' ') end++;
+				break;
+			    }
+			}
+			if (skipping == 0) {
+			    sb.append(text.substring(textStart, start));
+			    Directive directive = directives
+				.get(PatternType.SLASH_ANY, cmd);
+			    if (directive.replace && text.charAt(end) == '{') {
+				sb.append(directive.replacement);
+				skipToDepth = depth;
+				skipping++;
+			    } else {
+				// lastend = end;
+			    }
+			    textStart = end;
+			}
+		    }
+		}
 	    }
 	}
 	if (endDocSeen) {
@@ -1671,6 +2269,9 @@ public class LTGCheck {
 	}
     }
 
+    static java.util.regex.Pattern verbatimPattern = java.util.regex.Pattern
+	.compile("([\\\\]end)(\\p{Blank}+)([{]verbatim[*]?[}])");
+
     static java.util.regex.Pattern inputPattern = java.util.regex.Pattern
 	.compile("([\\\\][A-Za-z][A-Za-z0-9]*)(\\p{Blank}+)([{])");
 
@@ -1686,6 +2287,7 @@ public class LTGCheck {
 	String proto = "http";
 	String urlString = null;
 	boolean textmode = false;
+	boolean skipMode = true;
 	boolean odtmode = false;
 	boolean raw = false;
 	boolean justPrint = false;
@@ -1709,11 +2311,15 @@ public class LTGCheck {
 	    } else if (argv[argind].equals("--tex")) {
 		odtmode = false;
 		textmode = false;
+	    } else if (argv[argind].equals("--itex")) {
+		odtmode = false;
+		textmode = false;
+		skipMode = false;
 	    } else if (argv[argind].equals("--host")
 		       || argv[argind].equals("-h")) {
 		argind++;
 		if (argind == argv.length) {
-		    System.err.println("gcheck: missing host name");
+		    System.err.println("ltgcheck: missing host name");
 		    System.exit(1);
 		}
 		host = argv[argind];
@@ -1721,23 +2327,23 @@ public class LTGCheck {
 		       || argv[argind].equals("-p")) {
 		argind++;
 		if (argind == argv.length) {
-		    System.err.println("gcheck: missing host name");
+		    System.err.println("ltgcheck: missing host name");
 		    System.exit(1);
 		}
 		try {
 		    port = Integer.parseInt(argv[argind]);
 		    if (port <= 0 || port > 65535) {
-			System.err.println("gcheck: bad port");
+			System.err.println("ltgcheck: bad port");
 			System.exit(1);
 		    }
 		} catch (Exception e) {
-		    System.err.println("gcheck: bad port");
+		    System.err.println("ltgcheck: bad port");
 		    System.exit(1);
 		}
 	    } else if (argv[argind].equals("--version")) {
 		argind++;
 		if (argind == argv.length) {
-		    System.err.println("gcheck: missing version");
+		    System.err.println("ltgcheck: missing version");
 		    System.exit(1);
 		}
 		version = argv[argind];
@@ -1746,14 +2352,14 @@ public class LTGCheck {
 	    } else if (argv[argind].equals("--url")) {
 		argind++;
 		if (argind == argv.length) {
-		    System.err.println("gcheck: missing URL");
+		    System.err.println("ltgcheck: missing URL");
 		    System.exit(1);
 		}
 		urlString = argv[argind];
 	    } else if (argv[argind].equals("--chapter")) {
 		argind++;
 		if (argind == argv.length) {
-		    System.err.println("gcheck: missing host name");
+		    System.err.println("ltgcheck: missing host name");
 		    System.exit(1);
 		}
 		try {
@@ -1762,7 +2368,7 @@ public class LTGCheck {
 			throw new Exception("negative chapter");
 		    }
 		} catch (Exception e) {
-		    System.err.println("gcheck: the argument to --chapter"
+		    System.err.println("ltgcheck: the argument to --chapter"
 				       + " must be a non-negative integer");
 		    System.exit(1);
 		}
@@ -1821,14 +2427,14 @@ public class LTGCheck {
 	    if (filename.endsWith(".tex")) {
 		if (textmode || odtmode) {
 		    System.err
-			.println("gcheck: --text or --odt not allowed for "
+			.println("ltgcheck: --text or --odt not allowed for "
 				 + ".tex files");
 		    System.exit(1);
 		}
 	    } else if (filename.endsWith(".odt")) {
 		if (textmode) {
 		    System.err
-			.println("gcheck:  --text not allowed for .odt files");
+			.println("ltgcheck: --text not allowed for .odt files");
 		    System.exit(1);
 		}
 		textmode = true; odtmode = false;
@@ -1871,55 +2477,64 @@ public class LTGCheck {
 		ps.println(text);
 		ps.close();
 		filename = textfile;
-	    } else if (filename.endsWith(".txt")) {
+	     } else if (filename.endsWith(".txt")) {
 		if (odtmode) {
 		    System.err
-			.println("gcheck:--odt not allowed for .txt files");
+			.println("ltgcheck:--odt not allowed for .txt files");
 		    System.exit(1);
 		}
 		textmode = true;
-	    } else {
+	     } else {
 		if (odtmode) {
 		    System.err
-			.println("gcheck: --odt not allowed for file type");
+			.println("ltgcheck: --odt not allowed for file type");
 		    System.exit(1);
 		}
 		textmode = true;
-	    }
-	} else {
-	    if (odtmode) {
+	     }
+	 } else {
+	     if (odtmode) {
 		    System.err
-			.println("gcheck: --odt not allowed for for stdin");
+			.println("ltgcheck: --odt not allowed for for stdin");
 		    System.exit(1);
-	    }
-	}
+	     }
+	 }
 
-	if (raw) {
-	    System.out.println("ltgtest: --raw not allowed "
+	 if (raw) {
+	     System.out.println("ltgtest: --raw not allowed "
 			      + "(open document format only)");
-	    System.exit(1);
-	}
+	     System.exit(1);
+	 }
 
-	String fname = ((findex == -1)? "[stdin]": filename);
+	 String fname = ((findex == -1)? "[stdin]": filename);
 
 
-	InputStream input = null;
-	String text = null;
-	try {
-	    input = (findex >= 0)? new FileInputStream(filename):
+	 InputStream input = null;
+	 String text = null;
+	 try {
+	     input = (findex >= 0)? new FileInputStream(filename):
 		System.in;
-	    if (textmode) {
+	     if (textmode) {
 		text =  new String(input.readAllBytes(), "UTF-8");
-	    } else {
+	     } else {
+		Matcher m = verbatimPattern
+		    .matcher(new String(input.readAllBytes(), "UTF-8"));
+		text = inputPattern.matcher(m.replaceAll("$1\u2423$3"))
+		    .replaceAll("$1$3");
+		text = inputPattern2.matcher(text).replaceAll("$1$3")
+		    .replace("\u2423"," ");
+		/*
 		Matcher m = inputPattern
 		    .matcher(new String(input.readAllBytes(), "UTF-8"));
 		text = inputPattern2.matcher(m.replaceAll("$1$3"))
 		    .replaceAll("$1$3");
-	    }
-	} catch (Exception e) {
-	    System.err.println(e.getMessage());
-	    System.exit(1);
-	}
+		*/
+	     }
+	 } catch (Exception e) {
+	     System.err.println(e.getMessage());
+	     System.exit(1);
+	 }
+
 
 	/*
 	System.out.println("----");
@@ -1928,7 +2543,7 @@ public class LTGCheck {
 	*/
 
 	ArrayList<String> data = textmode? scan(textPatterns, 1, false, text):
-	    scan(latexPatterns, 1, true, text);
+	    scan(latexPatterns, 1, skipMode, text);
 
 	if (listOffsetMap) {
 	    System.out.println("offset map:");
@@ -1967,12 +2582,22 @@ public class LTGCheck {
 	    if (justPrint) {
 		System.out.print(datum);
 	    } else {
-		System.out.println("*** PROCESSING PART " + part);
+		if (data.size() == 1) {
+		    System.out.println("*** PROCESSING");
+		} else {
+		    if (part == 1) {
+			System.out.println("*** PROCESSING PREFACE");
+		    } else {
+			System.out.println("*** PROCESSING CHAPTER "
+					   + (part - 1));
+		    }
+		    // System.out.println("*** PROCESSING PART " + part);
+		}
 		Object obj = queryServer(url, datum);
 		if (obj != null) {
 		    displayServerResponse(obj, datum, fname, base);
 		} else {
-		    System.err.println("could not process data");
+		    System.err.println("ltgcheck: could not process data");
 		    System.exit(1);
 		}
 		base += datum.length();
@@ -2021,7 +2646,7 @@ public class LTGCheck {
 			 if (len1 != len2) return len2 - len1;
 			 return s1.compareTo(s2);});
 
- 	for (NoteEntry entry: noteList
+	for (NoteEntry entry: noteList
 		 .toArray(new NoteEntry[noteList.size()])) {
 	    if (justPrint) {
 		System.out.println(entry.getValue());
