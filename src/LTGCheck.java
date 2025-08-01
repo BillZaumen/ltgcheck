@@ -1142,6 +1142,18 @@ public class LTGCheck {
 			skipping--;
 			textStart = end;
 			skipToDepth = -1;
+			// The following handles a corner case where a
+			// command spanned multiple lines was hidden,
+			// and is immediately followed by a period.
+			// Otherwise one might see a misleading error
+			// message about spaces before a period.
+			int sbend = sb.length()-1;
+			if (skipping == 0
+			    && sbend >= 0 && textStart < text.length()
+			    && text.charAt(textStart) == '.'
+			    && sb.charAt(sbend) == '\n') {
+			    sb.append("()");
+			}
 		    }
 		}
 		acute = false;

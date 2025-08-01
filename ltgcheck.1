@@ -9,7 +9,7 @@ ltgcheck \- Check document grammar using LanguageTool
 [\fIFILE\fR]
 .br
 .B ltgcheck
-.B  \-h
+.B  \-\-help
 .SH DESCRIPTION
 The program
 .B ltgcheck
@@ -21,16 +21,27 @@ LanguageTool generates, formatted so that the emacs
 command will show the text associated with each error. This command
 reads the error messages and maps them to marks in the file, so that
 a "go to next error" command will show the correct line in the file,
-even addition lines have been inserted before that line.
+even addition lines have been inserted before that line. The command-line
+argument
+.I FILE
+is the name of an input file.  If missing, standard input is assumed,
+but a file is required for open-document-format text files.
 .PP
 For LaTeX files
 .B ltgcheck
-ignores comments, and removes LaTex commands. It will not display the
-argument for section-heading commands, commands that do not provide
-any text (e.g.
+ignores comments, except for
+.B ltgcheck
+directives and emacs
+.B LocalWords
+comments, and removes LaTex commands. It will not process the argument of a
+LaTeX command for section headings, commands that do not provide any text
+(e.g.
 .BR \eusepackage ),
 and a some special cases such as
 .BR \everb .
+It will also not process the contents of some environments such as the
+ones used to create equations as the text of these will in general should
+not be checked for grammar errors.
 .B ltgcheck
 directives can also be placed in a LaTeX file, represented as stylized
 comments. These can appear anywhere in a LaTeX file and affect subsequent
@@ -59,6 +70,7 @@ indicates that the the contents of an environment or the argument of a
 command will be processed.  An ltgcheck directive will be ignored for
 the commands
 .BR \e" ,
+\" "
 .BR \e' ,
 .BR \eH ,
 .BR \eO ,
@@ -103,13 +115,15 @@ environment, whose contents are processed. For example,
 .IP
 .B \enewenvironment{code}{\ett}{}
 .br
-.B %\ ltgcheck:\ hide\ (code)
+.B %\ ltgcheck:\ \ecode\ hide\ (code)
 .IP
-will create a LaTeX enviroment whose contents will be displayed using a
+will create a LaTeX environment whose contents will be displayed using a
 typewriter font, and that will be replaced with the string
 .B (code)
 when passed to LanguageTool so that LanguageTool will not generate
-inappropriate warnings about spelling.
+inappropriate warnings about spelling.  The replacement should include
+parentheses to prevent LanguageTool from confusing the replacement with
+part of a sentence.
 .PP
 For open-document-format files, most XML elements are ignored. A few
 are replaced with line breaks.  Line breaks are also created after
@@ -136,7 +150,10 @@ LanguageTool server is
 .PP
 .B http://localhost:8081/v2/check
 .PP
-but options can modify this or completely replace this URL.
+but options can modify this or completely replace this URL.  The default
+URL is the one appropriate for the Docker image listed above when run
+on the same system as
+.BR ltgcheck.
 .SH OPTIONS
 The options are
 .TP
@@ -197,7 +214,7 @@ This option indicates that
 should list words added to a document-specific dictionary used the
 emacs spelling software.  This is a LaTeX specific option.  The listed
 words appear at the end of the input file on lines starting with either
-"%LocalWords: " or "% LocalWords: ".
+"%LocalWords: " or "% LocalWords: ". LaTex eusepackage everb eH eO eo
 .TP
 .B \-\-notes
 This option causes footnotes and captions to be checked for errors. If
@@ -211,7 +228,17 @@ options are provided, the full document will be checked.
 .TP
 .B \-\-odt
 Indicates that the input file is an open document format text file. With
-this option, standard input cannot be used.
+this option, standard input cannot be used. A file with the extension
+changed to
+.B .txt
+will be created.  To avoid overwriting an existing file by accident,
+include the
+.B \-\-prompt
+option so that
+.B ltgcheck
+will ask if the
+.B .txt
+file already exists.
 .TP
 .B \-\-print
 Print the contents of a document after removing formatting directives.
@@ -261,5 +288,10 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 \"  LocalWords:  fIOPTIONS fR fIFILE br LaTeX emacs TT meyay yml TP
 \"  LocalWords:  languagetool TQ TCP https url ignoreLocalWords odt
-\"  LocalWords:  listLocalWords txt xml tex Zaumen GPLv GPL
-\"  LocalWords:  LTGCHECK ltgcheck LanguageTool
+\"  LocalWords:  listLocalWords txt xml tex Zaumen GPLv GPL eeauthor
+\"  LocalWords:  LTGCHECK ltgcheck LanguageTool ecaption edate einput
+\"  LocalWords:  edocumentclass efootnote einclude eincludeonly eref
+\"  LocalWords:  eincludgraphics elabel enewcommand enewenvironment
+\"  LocalWords:  epageref eprovidecommand erenewcommand eresizebox
+\"  LocalWords:  erenewenvironment etitle displaymath eqnarray ett
+\"  LocalWords:  ecode itex ebegin
