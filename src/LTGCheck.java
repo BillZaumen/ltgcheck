@@ -2573,6 +2573,11 @@ public class LTGCheck {
 	    }
 	    System.exit(0);
 	}
+	if (partShown >= data.size()) {
+	    System.err.format("ltgcheck: chapter %d does not exist\n",
+			      partShown);
+	    System.exit(1);
+	}
 
 	/*
 	for (String s: data) {
